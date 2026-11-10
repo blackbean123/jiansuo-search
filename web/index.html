@@ -1,0 +1,3554 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="paper">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#070A0E">
+<title>见索 · 看得见的深度搜索</title>
+<style>
+/* OD-LAYOUT-PRIMITIVES v1 — structure only: display, flex/grid, overflow, wrapping, ratio, geometry.
+   Put this @layer first; product CSS outside the layer wins ordinary layout rules.
+   Native hidden and closed-dialog states take precedence over component display rules. */
+@layer od-layout {
+  [hidden]:not([hidden="until-found" i]) { display: none !important; }
+  dialog:not([open]) { display: none !important; }
+
+  :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+
+  /* containers */
+  .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+  .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+  .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+  .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+  .od-fill    { flex: 1 1 0; min-width: 0; }
+  .od-fixed   { flex: none; }
+  .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
+
+  /* stacked information: each piece is its own line — never sibling inline spans */
+  .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+  :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+  .od-tile { display: grid; grid-template-rows: auto 1fr; }
+  :where(.od-tile) > :where(*) { display: block; }
+
+  .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+  .od-media-cover { object-fit: cover; }
+
+  .od-icon { display: inline-block; inline-size: var(--od-icon-size, 1em); block-size: var(--od-icon-size, 1em); flex: none; }
+
+  .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .od-clamp-2 { -webkit-line-clamp: 2; }
+  .od-clamp-3 { -webkit-line-clamp: 3; }
+  .od-lines-2 { min-height: calc(2 * 1.4em); }
+  .od-nowrap  { white-space: nowrap; }
+  .od-keep    { word-break: keep-all; overflow-wrap: anywhere; }
+
+  .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+  .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+
+  .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+             padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+  .od-rail::-webkit-scrollbar { display: none; }
+  :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+  :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
+
+  .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+  .od-touch  { min-width: 44px; min-height: 44px; }
+}
+:root [hidden]:where(:not([hidden="until-found" i])) { display: none; }
+/* /OD-LAYOUT-PRIMITIVES v1 */
+
+/* ============ tokens · 主题：档案（默认） ============ */
+:root{
+  color-scheme:dark;
+
+  --paper:#12100D;
+  --panel:#191510;
+  --panel-2:#15120E;
+  --ink:#EFE5D2;
+  --ink-2:#C4B7A2;
+  --ink-3:#97897A;
+  --line:#2F2820;
+  --line-2:#251F18;
+
+  --accent:#E3A95A;
+  --accent-rgb:227,169,90;
+  --accent-ink:#1B1206;
+  --accent-hover:#F2C27E;
+  --accent-text:#F6D9A8;
+  --accent-soft:rgba(227,169,90,.08);
+
+  --red:#E27A62;
+  --danger-rgb:226,122,98;
+  --red-bg:rgba(226,122,98,.10);
+  --fake:#9FB6CE;
+  --fake-rgb:159,182,206;
+
+  --chip-bg:rgba(255,240,215,.035);
+  --hover:rgba(255,240,215,.06);
+  --sheen:rgba(255,238,208,.03);
+  --input-bg:rgba(20,16,12,.94);
+  --bar-bg:rgba(18,15,12,.94);
+  --placeholder:#7C6E5C;
+  --dot-idle:#4A3F33;
+  --strike:#5A4C3C;
+  --faint:#6B5D4B;
+  --pending-bar:#2A231B;
+  --hatch-a:#16120E;
+  --hatch-b:#241D15;
+  --grid-line:rgba(237,224,201,.032);
+  --glow-a:rgba(227,169,90,.10);
+  --glow-b:rgba(170,92,50,.05);
+  --scroll-thumb:#3A3025;
+  --scroll-thumb-hover:#4E4232;
+  --backdrop:rgba(6,5,3,.66);
+  --disabled-bg:#241D16;
+  --disabled-fg:#7A6C59;
+  --insight-bg:rgba(227,169,90,.07);
+  --insight-text:#EBD9B8;
+  --note-bg:rgba(227,169,90,.05);
+  --note-text:#E4D2B2;
+
+  --card-a:#1E1811;
+  --card-b:#14100C;
+  --card-border:#3A2F23;
+  --card-text:#E8DCC6;
+  --card-strong:#FBF2E0;
+  --card-muted:#A6957F;
+  --card-line:#33291F;
+  --card-seg:#33291F;
+  --card-accent:#E3A95A;
+  --card-accent-rgb:227,169,90;
+  --card-danger:#E8896F;
+  --card-danger-rgb:232,137,111;
+
+  --font-serif:"Noto Serif SC","Source Han Serif SC","Songti SC",serif;
+  --font-sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","IBM Plex Mono",Consolas,"Courier New",monospace;
+  --font-display:var(--font-serif);
+  --font-num:var(--font-serif);
+
+  --r:6px;
+  --shadow:0 1px 0 rgba(255,240,215,.03);
+}
+
+/* 主题：控制台 */
+:root[data-theme="console"]{
+  color-scheme:dark;
+  --paper:#070A0E;
+  --panel:#0D1318;
+  --panel-2:#0A0F13;
+  --ink:#E7EFF3;
+  --ink-2:#A9B7C0;
+  --ink-3:#7C8B95;
+  --line:#1E2A32;
+  --line-2:#141D24;
+
+  --accent:#2FE3C4;
+  --accent-rgb:47,227,196;
+  --accent-ink:#04130F;
+  --accent-hover:#6DF3DC;
+  --accent-text:#D8FBF4;
+  --accent-soft:rgba(47,227,196,.08);
+
+  --red:#FF705C;
+  --danger-rgb:255,112,92;
+  --red-bg:rgba(255,112,92,.10);
+  --fake:#F2B45E;
+  --fake-rgb:242,180,94;
+
+  --chip-bg:rgba(255,255,255,.02);
+  --hover:rgba(255,255,255,.055);
+  --sheen:rgba(255,255,255,.022);
+  --input-bg:rgba(13,19,24,.92);
+  --bar-bg:rgba(10,15,19,.94);
+  --placeholder:#5C6B75;
+  --dot-idle:#2A3842;
+  --strike:#3A4750;
+  --faint:#4E5C66;
+  --pending-bar:#182229;
+  --hatch-a:#0B1116;
+  --hatch-b:#16222A;
+  --grid-line:rgba(255,255,255,.022);
+  --glow-a:rgba(47,227,196,.14);
+  --glow-b:rgba(52,120,255,.07);
+  --scroll-thumb:#22303A;
+  --scroll-thumb-hover:#2E404B;
+  --backdrop:rgba(3,6,9,.62);
+  --disabled-bg:#172128;
+  --disabled-fg:#5D6B75;
+  --insight-bg:rgba(47,227,196,.06);
+  --insight-text:#CBE9E3;
+  --note-bg:rgba(47,227,196,.05);
+  --note-text:#BFE6DF;
+
+  --card-a:#101B21;
+  --card-b:#0A1014;
+  --card-border:#263740;
+  --card-text:#DCE7E6;
+  --card-strong:#F2FBF9;
+  --card-muted:#8FA1AA;
+  --card-line:#1F2C34;
+  --card-seg:#1B272E;
+  --card-accent:#2FE3C4;
+  --card-accent-rgb:47,227,196;
+  --card-danger:#FF9C86;
+  --card-danger-rgb:255,156,134;
+
+  --font-display:var(--font-sans);
+  --font-num:var(--font-mono);
+  --shadow:0 1px 0 rgba(255,255,255,.03);
+}
+
+/* 主题：纸张 */
+:root[data-theme="paper"]{
+  color-scheme:light;
+  --paper:#F4F5F5;
+  --panel:#FFFFFF;
+  --panel-2:#F9FAFA;
+  --ink:#12171A;
+  --ink-2:#394147;
+  --ink-3:#5B646A;
+  --line:#DDE2E3;
+  --line-2:#EAEEEF;
+
+  --accent:#0C6555;
+  --accent-rgb:12,101,85;
+  --accent-ink:#FFFFFF;
+  --accent-hover:#0F7F6B;
+  --accent-text:#0A5749;
+  --accent-soft:rgba(12,101,85,.07);
+
+  --red:#A4362A;
+  --danger-rgb:164,54,42;
+  --red-bg:rgba(164,54,42,.08);
+  --fake:#8A5A12;
+  --fake-rgb:138,90,18;
+
+  --chip-bg:rgba(18,23,26,.02);
+  --hover:rgba(18,23,26,.05);
+  --sheen:rgba(18,23,26,.012);
+  --input-bg:#FFFFFF;
+  --bar-bg:rgba(255,255,255,.94);
+  --placeholder:#98A2A6;
+  --dot-idle:#C4CCCF;
+  --strike:#B4BCC0;
+  --faint:#9AA4A8;
+  --pending-bar:#E7EBEC;
+  --hatch-a:#F3F5F5;
+  --hatch-b:#E8ECED;
+  --grid-line:rgba(18,23,26,.05);
+  --glow-a:rgba(12,101,85,.05);
+  --glow-b:rgba(30,90,160,.04);
+  --scroll-thumb:#D3D9DA;
+  --scroll-thumb-hover:#BFC7C9;
+  --backdrop:rgba(18,23,26,.30);
+  --disabled-bg:#B9C1C4;
+  --disabled-fg:#FFFFFF;
+  --insight-bg:#EAF2F0;
+  --insight-text:#12483E;
+  --note-bg:#EAF2F0;
+  --note-text:#12483E;
+
+  --card-a:#171C1F;
+  --card-b:#101518;
+  --card-border:#2A3338;
+  --card-text:#DFE5E5;
+  --card-strong:#F4F7F7;
+  --card-muted:#8FA0A6;
+  --card-line:#2E383D;
+  --card-seg:#2E383D;
+  --card-accent:#4FBFA6;
+  --card-accent-rgb:79,191,166;
+  --card-danger:#FF8A73;
+  --card-danger-rgb:255,138,115;
+
+  --font-display:var(--font-serif);
+  --font-num:var(--font-serif);
+  --shadow:0 1px 2px rgba(18,23,26,.05);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--font-sans);font-size:15px;line-height:1.7;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    radial-gradient(1100px 620px at 78% -14%, var(--glow-a), transparent 62%),
+    radial-gradient(860px 520px at 6% 106%, var(--glow-b), transparent 60%),
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size:auto,auto,56px 56px,56px 56px;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 58%,transparent 100%);
+  mask-image:linear-gradient(180deg,#000 0%,#000 58%,transparent 100%);
+}
+main{position:relative;z-index:1}
+body::after{
+  content:"";position:fixed;top:0;left:0;right:0;height:1px;z-index:50;pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(var(--accent-rgb),.75),transparent);
+}
+h1,h2,h3,h4,p,ul,ol,dl,dd,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+a{color:var(--accent)}
+::selection{background:rgba(var(--accent-rgb),.28);color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.mt-6{margin-top:6px}
+.mb-12{margin-bottom:12px}
+.ml-auto{margin-left:auto}
+.skip-link{position:absolute;left:12px;top:-48px;z-index:100;background:var(--accent);color:var(--accent-ink);padding:8px 14px;border-radius:4px;text-decoration:none;transition:top .15s ease}
+.skip-link:focus{top:12px}
+
+/* ============ shared controls ============ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:38px;padding:0 16px;border-radius:4px;font-size:13.5px;font-weight:500;
+  border:1px solid transparent;transition:background-color .16s ease,border-color .16s ease,color .16s ease;
+  white-space:nowrap;
+}
+.btn--primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;box-shadow:0 6px 22px rgba(var(--accent-rgb),.14)}
+.btn--primary:hover{background:var(--accent-hover);border-color:var(--accent-hover);box-shadow:0 8px 30px rgba(var(--accent-rgb),.24)}
+.btn--primary:disabled{background:var(--disabled-bg);border-color:var(--disabled-bg);color:var(--disabled-fg);box-shadow:none;cursor:not-allowed}
+.btn--line{background:transparent;border-color:var(--line);color:var(--ink)}
+.btn--line:hover{border-color:rgba(var(--accent-rgb),.5);background:rgba(var(--accent-rgb),.05);color:var(--accent-text)}
+.btn--quiet{background:transparent;border-color:transparent;color:var(--ink-3)}
+.btn--quiet:hover{color:var(--ink);background:var(--hover)}
+.btn--sm{min-height:30px;padding:0 10px;font-size:12.5px}
+.icon-btn{
+  display:inline-flex;align-items:center;justify-content:center;min-width:32px;min-height:32px;
+  border-radius:4px;color:var(--ink-3);font-size:18px;line-height:1;
+}
+.icon-btn:hover{background:var(--hover);color:var(--ink)}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:3px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.02em;color:var(--ink-2);
+  background:var(--chip-bg);border:1px solid var(--line);
+}
+.chip--live{background:var(--accent-soft);border-color:rgba(var(--accent-rgb),.35);color:var(--accent)}
+.chip--live::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;animation:pulse 1.4s ease-in-out infinite}
+.chip--quiet{color:var(--ink-3);background:transparent;border-color:var(--line)}
+.chip--done{color:var(--accent);background:rgba(var(--accent-rgb),.07);border-color:rgba(var(--accent-rgb),.3)}
+.chip--danger{background:var(--red-bg);border-color:rgba(var(--danger-rgb),.35);color:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* theme switch */
+.theme-switch{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--line);border-radius:999px;background:var(--chip-bg)}
+.theme-switch-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;color:var(--ink-3);padding:0 7px 0 6px}
+.theme-opt{display:inline-flex;align-items:center;gap:6px;height:26px;min-height:26px;padding:0 9px;border-radius:999px;font-size:11.5px;color:var(--ink-3);transition:background-color .16s ease,color .16s ease,box-shadow .16s ease}
+.theme-opt:hover{color:var(--ink)}
+.theme-opt[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.theme-opt .sw{width:9px;height:9px;border-radius:50%;flex:none}
+.sw-paper{background:#F4F5F5;box-shadow:inset 0 0 0 1px #C3CBCD}
+.sw-console{background:#0B1116;box-shadow:inset 0 0 0 1px #2FE3C4}
+.sw-archive{background:#1E1811;box-shadow:inset 0 0 0 1px #E3A95A}
+.theme-switch--compact .theme-opt{padding:0 7px}
+.theme-switch--compact .theme-opt span{display:none}
+.home-tools{display:flex;align-items:center;gap:14px}
+
+/* ============ home ============ */
+#view-home{min-height:100vh;display:grid;grid-template-rows:auto 1fr}
+.home-top{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  padding:16px 32px;border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:22px;height:22px;display:block;color:var(--accent);filter:drop-shadow(0 0 10px rgba(var(--accent-rgb),.35))}
+.brand-name{font-family:var(--font-display);font-weight:700;font-size:18px;letter-spacing:.1em}
+.brand-sub{font-size:12px;color:var(--ink-3);letter-spacing:.06em;padding-left:10px;border-left:1px solid var(--line)}
+.brand-meta{font-family:var(--font-mono);font-size:11px;color:var(--ink-3);letter-spacing:.04em}
+
+.home-main{width:100%;max-width:748px;margin:0 auto;padding:76px 32px 56px}
+.home-main > *{animation:heroIn .55s ease-out both}
+.home-main > *:nth-child(1){animation-delay:.02s}
+.home-main > *:nth-child(2){animation-delay:.06s}
+.home-main > *:nth-child(3){animation-delay:.12s}
+.home-main > *:nth-child(4){animation-delay:.18s}
+.home-main > *:nth-child(5){animation-delay:.24s}
+.home-main > *:nth-child(6){animation-delay:.30s}
+@keyframes heroIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.kicker{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;color:var(--accent);opacity:.85;
+  margin-bottom:20px;text-transform:uppercase;
+}
+.home-title{
+  font-family:var(--font-display);font-weight:600;font-size:clamp(38px,4.8vw,58px);
+  line-height:1.34;letter-spacing:0;margin-bottom:18px;
+}
+.home-lede{font-size:16px;line-height:1.85;color:var(--ink-2);max-width:34em;margin-bottom:40px}
+
+.ask{display:block}
+.field-label{display:block;font-size:12px;letter-spacing:.06em;color:var(--ink-3);margin-bottom:8px}
+.ask-box{
+  background:var(--input-bg);border:1px solid var(--line);border-radius:var(--r);
+  padding:14px 14px 12px;transition:border-color .16s ease,box-shadow .16s ease;
+  box-shadow:inset 0 1px 0 var(--sheen);
+}
+.ask-box:focus-within{border-color:rgba(var(--accent-rgb),.55);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.10),0 0 26px rgba(var(--accent-rgb),.08)}
+#claim-input{
+  display:block;width:100%;min-height:66px;border:0;outline:none;resize:vertical;
+  font-family:var(--font-sans);font-size:17px;line-height:1.7;color:var(--ink);background:transparent;
+  caret-color:var(--accent);
+}
+#claim-input::placeholder{color:var(--placeholder)}
+.ask-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+.provider{display:flex;align-items:center;gap:8px}
+.provider label{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink-3)}
+.select{
+  appearance:none;-webkit-appearance:none;height:32px;padding:0 26px 0 10px;border-radius:4px;
+  border:1px solid var(--line);background:var(--input-bg);font-size:12.5px;color:var(--ink-2);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237C8B95' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;cursor:pointer;
+}
+.select:hover{border-color:rgba(var(--accent-rgb),.45)}
+.field-hint{font-size:12px;color:var(--ink-3);margin-top:10px;line-height:1.6}
+.field-hint.is-warn{color:var(--red)}
+
+.examples{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:26px}
+.examples-label{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;color:var(--ink-3)}
+.example{
+  padding:7px 13px;border:1px solid var(--line);border-radius:999px;font-size:13px;color:var(--ink-2);
+  background:transparent;transition:border-color .16s ease,background-color .16s ease,color .16s ease;
+}
+.example:hover{border-color:rgba(var(--accent-rgb),.45);background:rgba(var(--accent-rgb),.05);color:var(--accent-text)}
+.example::after{content:"↗";margin-left:8px;font-size:11px;color:var(--ink-3)}
+
+.home-stats{
+  display:flex;gap:56px;margin-top:64px;padding-top:22px;border-top:1px solid var(--line);
+}
+.home-stats>div{display:grid;gap:2px}
+.stat-num{font-family:var(--font-num);font-size:28px;line-height:1.2;color:var(--accent)}
+.stat-cap{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink-3)}
+
+/* ============ console ============ */
+#view-run{height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--paper)}
+.runbar{
+  display:flex;align-items:center;gap:18px;padding:10px 18px;background:var(--bar-bg);
+  border-bottom:1px solid var(--line);min-height:60px;box-shadow:inset 0 -1px 0 rgba(var(--accent-rgb),.10);
+}
+.run-claim{min-width:0}
+.run-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase}
+.run-title{
+  font-family:var(--font-display);font-size:17px;font-weight:600;line-height:1.4;
+  max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.run-meta{display:flex;align-items:center;gap:12px;flex:none}
+.run-meta .mono{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.run-actions{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none}
+.run-actions .btn{min-height:32px;padding:0 11px;font-size:12.5px}
+
+.panes{
+  display:grid;grid-template-columns:252px minmax(340px,.78fr) minmax(0,1.22fr);
+  min-height:0;
+}
+
+/* rail */
+.rail{
+  border-right:1px solid var(--line);background:var(--panel);
+  padding:16px 16px 40px;overflow-y:auto;min-height:0;
+}
+.rail-block{margin-bottom:22px}
+.rail-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  margin-bottom:8px;
+}
+.rail-head h3{font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--ink)}
+.rail-head .count{font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+.rail-list{display:flex;flex-direction:column;gap:2px}
+.rail-item{padding:7px 0;border-bottom:1px solid var(--line-2)}
+.rail-item:last-child{border-bottom:0}
+.rail-item-top{display:flex;align-items:center;gap:7px}
+.rail-dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--dot-idle);transition:background-color .2s ease,box-shadow .2s ease}
+.rail-item.is-on .rail-dot{background:var(--accent);box-shadow:0 0 8px rgba(var(--accent-rgb),.45)}
+.rail-item.is-off{opacity:.55}
+.rail-item.is-active .rail-dot{background:var(--accent);box-shadow:0 0 12px var(--accent);animation:pulse 1.2s ease-in-out infinite}
+.rail-item.is-done .rail-dot{background:var(--accent)}
+.rail-name{font-size:12.5px;font-weight:500;color:var(--ink)}
+.rail-item.is-off .rail-name{text-decoration:line-through;text-decoration-color:var(--strike);font-weight:400;color:var(--ink-3)}
+.rail-why{font-size:11px;line-height:1.6;color:var(--ink-3);margin-top:2px;padding-left:13px}
+.rail-src{display:flex;align-items:baseline;gap:6px;padding:5px 0;border-bottom:1px solid var(--line-2)}
+.rail-src:last-child{border-bottom:0}
+.rail-src-name{font-size:12.5px;color:var(--ink)}
+.rail-src-domain{font-family:var(--font-mono);font-size:10px;color:var(--ink-3);margin-left:auto}
+.rail-src-hit{font-family:var(--font-mono);font-size:10px;color:var(--accent)}
+.win-chip{display:block;padding:5px 0;border-bottom:1px solid var(--line-2)}
+.win-chip:last-child{border-bottom:0}
+.win-label{font-size:12.5px;color:var(--ink)}
+.win-range{font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+.rail-link{font-size:11.5px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block}
+.rail-link:hover{text-decoration:underline}
+.rail-progress{border-top:1px solid var(--line);padding-top:14px;margin-top:26px}
+.progress{height:3px;background:var(--line-2);border-radius:2px;overflow:hidden;margin-bottom:7px}
+.progress-bar{display:block;height:100%;width:0;background:var(--accent);box-shadow:0 0 10px rgba(var(--accent-rgb),.6);transition:width .3s ease}
+.progress-text{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3)}
+
+/* stream */
+.stream-pane{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;background:var(--panel-2);border-right:1px solid var(--line)}
+.pane-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:0 16px;height:44px;border-bottom:1px solid var(--line);background:var(--panel-2);
+}
+.pane-head h3{font-size:12px;font-weight:600;letter-spacing:.04em}
+.pane-meta{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3)}
+.stream{overflow-y:auto;padding:16px 16px 48px;display:flex;flex-direction:column;gap:10px;min-height:0;scroll-behavior:smooth}
+
+.ev{animation:rise .32s ease-out both}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ev--dec{padding:2px 0 12px;border-bottom:1px dashed var(--line)}
+.ev-kicker{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;color:rgba(var(--accent-rgb),.78);margin-bottom:4px}
+.ev-title{font-size:13.5px;font-weight:600;line-height:1.55;margin-bottom:5px}
+.ev-text{font-size:13px;line-height:1.75;color:var(--ink-2)}
+.ev-list{margin-top:9px;display:flex;flex-direction:column;gap:7px}
+.ev-item{display:grid;gap:1px}
+.ev-item-name{font-size:12.5px;font-weight:500}
+.ev-item-why{font-size:11.5px;line-height:1.65;color:var(--ink-3)}
+.ev-item--off .ev-item-name{color:var(--ink-3);font-weight:400;text-decoration:line-through;text-decoration-color:var(--strike)}
+
+.search-card{
+  background:linear-gradient(180deg,var(--sheen),transparent 60%),var(--panel);
+  border:1px solid var(--line);border-radius:var(--r);
+  padding:10px 12px 11px;box-shadow:var(--shadow);
+}
+.search-card.is-empty{background:var(--panel-2);border-style:dashed}
+.search-top{display:flex;align-items:baseline;gap:8px}
+.search-query{font-family:var(--font-mono);font-size:12.5px;color:var(--ink);line-height:1.5;word-break:break-word;flex:1 1 auto;min-width:0}
+.search-tag{flex:none;font-family:var(--font-mono);font-size:9px;letter-spacing:.08em;color:var(--accent);border:1px solid rgba(var(--accent-rgb),.35);border-radius:2px;padding:1px 5px;line-height:1.3}
+.search-ms{margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--ink-3);flex:none}
+.search-params{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.param{
+  display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;
+  color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line-2);
+  border-radius:3px;padding:2px 6px;
+}
+.param b{font-weight:500;color:var(--ink-3);letter-spacing:.04em}
+.search-stats{display:flex;align-items:baseline;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--line-2)}
+.res-count{font-family:var(--font-mono);font-size:12px;color:var(--accent)}
+.res-count.is-zero{color:var(--red)}
+.res-label{font-family:var(--font-mono);font-size:10px;color:var(--ink-3);letter-spacing:.04em}
+.res-list{margin-top:7px;display:flex;flex-direction:column;gap:4px}
+.res-item{display:flex;gap:8px;align-items:baseline;min-width:0}
+.res-idx{font-family:var(--font-mono);font-size:9.5px;color:var(--faint);flex:none;width:10px}
+.res-title{font-size:12.5px;color:var(--ink-2);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto;min-width:0}
+a.res-title{text-decoration:none}
+a.res-title:hover{text-decoration:underline}
+.res-meta{font-family:var(--font-mono);font-size:10px;color:var(--ink-3);flex:none;white-space:nowrap}
+.res-empty{font-size:11.5px;color:var(--red);margin-top:6px}
+.search-note{font-size:11px;line-height:1.6;color:var(--ink-3);margin-top:7px}
+
+.log-row{
+  display:grid;grid-template-columns:16px minmax(0,1fr) auto;gap:8px;align-items:baseline;
+  padding:4px 6px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-2);
+  animation:rise .25s ease-out both;
+}
+.log-row.is-zero{color:var(--red)}
+.log-row.is-active{background:rgba(var(--accent-rgb),.06)}
+.log-dot{width:5px;height:5px;border-radius:50%;background:var(--dot-idle);align-self:center}
+.log-row.is-hit .log-dot{background:var(--accent);box-shadow:0 0 6px rgba(var(--accent-rgb),.6)}
+.log-row.is-fake{color:var(--fake)}
+.log-row.is-fake .log-dot{background:var(--fake)}
+.log-row.is-zero .log-dot{background:var(--red)}
+.log-q{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-tag{font-size:10px;color:var(--ink-3);letter-spacing:.03em}
+
+.ev--insight{background:var(--insight-bg);border:1px solid rgba(var(--accent-rgb),.22);border-radius:var(--r);padding:11px 13px;box-shadow:inset 0 0 24px rgba(var(--accent-rgb),.04)}
+.ev--insight .ev-kicker{color:var(--accent)}
+.ev--insight .ev-text{color:var(--insight-text)}
+
+/* 时间窗探测 */
+.ev--probe{background:linear-gradient(180deg,var(--sheen),transparent 70%),var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 13px}
+.ev--probe .ev-kicker{color:rgba(var(--accent-rgb),.78)}
+.hist{display:flex;align-items:flex-end;gap:4px;height:64px;margin:12px 0 8px}
+.hist-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:64px}
+.hist-bar{display:block;width:100%;max-width:24px;background:var(--accent);border-radius:1px;opacity:.9;box-shadow:0 0 10px rgba(var(--accent-rgb),.22)}
+.hist-bar.is-zero{background:var(--line);opacity:1;box-shadow:none}
+.hist-year{font-family:var(--font-mono);font-size:9px;line-height:1;color:var(--ink-3)}
+.probe-meta{display:flex;flex-wrap:wrap;gap:14px;font-family:var(--font-mono);font-size:10px;color:var(--ink-3);margin-bottom:8px}
+.ev--end{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.ev--end .ev-title{font-size:14px}
+.end-actions{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+
+/* output pane */
+.output-pane{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;background:var(--panel)}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);padding:0 12px;height:44px;align-items:stretch;overflow-x:auto}
+.tab{
+  position:relative;padding:0 14px;font-size:12.5px;color:var(--ink-3);white-space:nowrap;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s ease,border-color .15s ease;
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--accent);font-weight:600;border-bottom-color:var(--accent)}
+.tab:disabled{color:var(--disabled-fg);cursor:not-allowed}
+.out-body{overflow-y:auto;padding:18px 18px 48px;min-height:0}
+
+.out-empty{
+  display:flex;flex-direction:column;align-items:flex-start;gap:8px;
+  padding:36px 4px;color:var(--ink-3);
+}
+.out-empty strong{font-size:14px;color:var(--ink-2);font-weight:500}
+.out-empty span{font-size:12.5px;line-height:1.7;max-width:36em}
+
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+.section-head h3{font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.4;letter-spacing:.01em}
+.section-head .mono{font-size:10.5px;color:var(--ink-3)}
+
+/* matrix */
+.matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+table.matrix{border-collapse:separate;border-spacing:0;width:100%;min-width:600px;table-layout:fixed}
+.matrix th,.matrix td{padding:0}
+.matrix thead th{
+  height:46px;text-align:left;vertical-align:bottom;padding:8px 10px 7px;
+  font-weight:500;border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:var(--panel);z-index:3;
+}
+.matrix thead th.corner{left:0;z-index:4;width:124px}
+.col-label{display:block;font-family:var(--font-mono);font-size:11px;color:var(--ink);font-weight:500;line-height:1.4;letter-spacing:.04em}
+.col-range{display:block;font-family:var(--font-mono);font-size:10px;color:var(--ink-3);margin-top:2px}
+.matrix tbody th{
+  position:sticky;left:0;z-index:2;background:var(--panel);text-align:left;
+  padding:9px 10px;border-bottom:1px solid var(--line-2);border-right:1px solid var(--line-2);
+  width:124px;vertical-align:top;
+}
+.src-name{display:block;font-size:12px;font-weight:600;line-height:1.45}
+.src-domain{display:block;font-family:var(--font-mono);font-size:10px;color:var(--ink-3);margin-top:1px}
+.src-cover{display:block;font-family:var(--font-mono);font-size:10px;color:var(--ink-3);margin-top:4px}
+.src-flag{display:block;font-family:var(--font-mono);font-size:9px;line-height:1.4;color:var(--fake);margin-top:4px}
+.matrix td.cell{
+  border-bottom:1px solid var(--line-2);border-right:1px solid var(--line-2);
+  height:78px;vertical-align:top;
+}
+.matrix tr:last-child th,.matrix tr:last-child td{border-bottom:0}
+.cell-btn{
+  display:block;width:100%;height:100%;min-height:78px;text-align:left;padding:8px 9px;
+  background:transparent;border-radius:0;
+}
+.cell-btn:disabled{cursor:default}
+.cell-btn:not(:disabled):hover{background:rgba(var(--accent-rgb),.06)}
+.cell-sum{display:block;font-size:12px;line-height:1.6;color:var(--ink-2);overflow-wrap:anywhere}
+.cell-meta{display:block;font-family:var(--font-mono);font-size:10px;color:var(--ink-3);margin-top:5px}
+.cell--pending .cell-btn{background:var(--panel-2)}
+.pending-bar{display:block;height:6px;width:52%;background:var(--pending-bar);border-radius:2px;margin-top:5px}
+.pending-bar.short{width:34%}
+.cell--filled .cell-btn{background:linear-gradient(180deg,rgba(var(--accent-rgb),.05),rgba(var(--accent-rgb),0) 72%)}
+.cell--live .cell-btn{background:rgba(var(--accent-rgb),.10);box-shadow:inset 0 0 0 1px rgba(var(--accent-rgb),.55),0 0 22px rgba(var(--accent-rgb),.14)}
+.cell--blind .cell-btn{
+  background-image:repeating-linear-gradient(45deg,var(--hatch-a),var(--hatch-a) 5px,var(--hatch-b) 5px,var(--hatch-b) 6px);
+}
+.cell--fake .cell-btn{
+  background-image:repeating-linear-gradient(135deg,var(--hatch-a),var(--hatch-a) 5px,var(--hatch-b) 5px,var(--hatch-b) 6px);
+  box-shadow:inset 0 0 0 1px rgba(var(--fake-rgb),.35);
+}
+.fake-tag{display:inline-block;font-family:var(--font-mono);font-size:9.5px;color:var(--fake);letter-spacing:.06em;margin-top:4px}
+.blind-tag{display:inline-block;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-3);letter-spacing:.06em;margin-top:4px}
+.blind-tag--gap{color:var(--red)}
+.cell--filled .cell-btn{animation:cellIn .45s ease-out both}
+@keyframes cellIn{
+  0%{opacity:.25;box-shadow:inset 0 0 0 1px rgba(var(--accent-rgb),.8),0 0 26px rgba(var(--accent-rgb),.28)}
+  100%{opacity:1}
+}
+
+.matrix-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:10.5px;color:var(--ink-3);font-family:var(--font-mono)}
+.lg{display:inline-flex;align-items:center;gap:6px}
+.lg i{width:12px;height:12px;border:1px solid var(--line);display:inline-block}
+.lg--fill i{background:var(--panel)}
+.lg--blind i{background-image:repeating-linear-gradient(45deg,var(--hatch-a),var(--hatch-a) 3px,var(--hatch-b) 3px,var(--hatch-b) 4px)}
+.lg--fake i{background-image:repeating-linear-gradient(135deg,var(--hatch-a),var(--hatch-a) 3px,var(--hatch-b) 3px,var(--hatch-b) 4px);box-shadow:inset 0 0 0 1px rgba(var(--fake-rgb),.5)}
+.lg--pending i{background:var(--panel-2)}
+
+.note{
+  margin-top:12px;padding:11px 13px;border-left:2px solid var(--accent);background:var(--note-bg);
+  font-size:11.5px;line-height:1.75;color:var(--note-text);
+}
+.note strong{font-weight:600}
+
+/* evidence table */
+.evi-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:4px}
+.evi-col{display:flex;flex-direction:column;gap:8px}
+.evi-head{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.evi-head .dot{width:7px;height:7px;border-radius:50%}
+.evi-col--sup .dot{background:var(--accent)}
+.evi-col--con .dot{background:var(--red)}
+.evi-item{background:var(--chip-bg);border:1px solid var(--line-2);border-radius:4px;padding:9px 10px}
+.evi-src{font-family:var(--font-mono);font-size:10px;color:var(--ink-3);letter-spacing:.02em;display:block}
+.evi-title{font-size:12px;line-height:1.6;color:var(--ink-2);display:block;margin-top:3px}
+.evi-title mark{background:transparent;color:var(--ink);font-weight:500;box-shadow:inset 0 -1px 0 rgba(var(--accent-rgb),.5)}
+.evi-note{font-size:11px;line-height:1.65;color:var(--ink-3);display:block;margin-top:5px}
+
+.verdict-strip{margin-top:16px;border:1px solid var(--line);border-top:2px solid rgba(var(--danger-rgb),.55);border-radius:var(--r);padding:13px 14px;background:var(--chip-bg)}
+.verdict-strip .label{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--ink-3)}
+.verdict-strip .body{font-size:13px;line-height:1.75;color:var(--ink);margin-top:4px}
+.verdict-strip .body b{color:var(--red);font-weight:600}
+
+/* diagnosis card */
+.verdict-card{
+  position:relative;overflow:hidden;
+  background:linear-gradient(165deg,var(--card-a) 0%,var(--card-b) 72%);
+  border:1px solid var(--card-border);color:var(--card-text);border-radius:8px;padding:22px 22px 20px;
+  max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05);
+}
+.verdict-card::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(var(--card-accent-rgb),.8),transparent);
+}
+.verdict-kicker{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;color:rgba(var(--card-accent-rgb),.85);text-transform:uppercase}
+.verdict-claim{font-family:var(--font-serif);font-size:21px;line-height:1.55;margin-top:10px;color:var(--card-strong)}
+.verdict-main{display:flex;align-items:flex-end;gap:12px;margin-top:18px}
+.verdict-level{font-family:var(--font-sans);font-weight:700;font-size:42px;line-height:1;color:var(--card-accent);text-shadow:0 0 26px rgba(var(--card-accent-rgb),.35)}
+.verdict-card.is-low .verdict-level{color:var(--card-danger);text-shadow:0 0 26px rgba(var(--card-danger-rgb),.3)}
+.verdict-what{font-size:11px;color:var(--card-muted);padding-bottom:5px}
+.verdict-score{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--card-muted);padding-bottom:5px}
+.meter{display:flex;gap:3px;margin-top:10px}
+.meter-seg{height:4px;flex:1;background:var(--card-seg);border-radius:1px}
+.meter-seg.on{background:var(--card-accent);box-shadow:0 0 8px rgba(var(--card-accent-rgb),.55)}
+.verdict-card.is-low .meter-seg.on{background:var(--card-danger);box-shadow:0 0 8px rgba(var(--card-danger-rgb),.45)}
+.verdict-rows{margin-top:18px;border-top:1px solid var(--card-line);padding-top:14px;display:grid;gap:9px}
+.verdict-row{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:baseline}
+.verdict-row dt{font-family:var(--font-mono);font-size:10px;color:var(--card-muted);letter-spacing:.04em}
+.verdict-row dd{margin:0;font-size:12.5px;line-height:1.65;color:var(--card-text)}
+.verdict-foot{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:12px;border-top:1px solid var(--card-line)}
+.verdict-foot .mono{font-size:9.5px;color:var(--card-muted);letter-spacing:.04em;opacity:.85}
+.verdict-foot .btn--inverse{margin-left:auto}
+.btn--inverse{background:var(--card-accent);color:#0A120F;border-color:var(--card-accent);min-height:30px;padding:0 11px;font-size:12px;font-weight:600}
+.btn--inverse:hover{filter:brightness(1.14)}
+
+/* narrative source name cell */
+.dist-name{font-size:12px;line-height:1.4}
+.dist-name span{display:block;font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+
+/* tree */
+.tree{display:flex;flex-direction:column;gap:0;margin-top:4px}
+.tree-node{position:relative;padding:0 0 16px 20px;border-left:1px solid var(--line)}
+.tree-node:last-child{border-left-color:transparent;padding-bottom:0}
+.tree-node::before{
+  content:"";position:absolute;left:-4px;top:5px;width:7px;height:7px;border-radius:50%;
+  background:var(--panel);border:1.5px solid var(--accent);
+}
+.tree-q{font-size:12.5px;font-weight:600;line-height:1.5}
+.tree-a{font-size:12px;line-height:1.7;color:var(--ink-2);margin-top:3px}
+.tree-src{font-family:var(--font-mono);font-size:10px;color:var(--ink-3);margin-top:4px;display:block}
+.tree-a .flag{color:var(--red);font-size:10.5px;font-family:var(--font-mono)}
+
+/* drawer */
+dialog.drawer{
+  position:fixed;top:0;right:0;bottom:0;left:auto;
+  margin:0;height:100%;max-height:100%;width:min(480px,100%);max-width:100%;
+  border:0;border-left:1px solid var(--line);background:var(--panel);padding:0;
+  box-shadow:-24px 0 70px rgba(0,0,0,.55);
+  display:flex;flex-direction:column;
+}
+dialog.drawer::backdrop{background:var(--backdrop)}
+.drawer-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  padding:18px 18px 14px;border-bottom:1px solid var(--line);background:var(--panel);z-index:1;flex:none;
+}
+.drawer-kicker{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;color:var(--ink-3)}
+.drawer-title{font-size:15px;font-weight:600;line-height:1.5;margin-top:3px}
+.drawer-body{padding:16px 18px 40px;overflow-y:auto;flex:1 1 auto;min-height:0}
+.ev-block{margin-bottom:20px}
+.ev-block h4{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--ink-3);margin-bottom:8px;font-weight:500}
+.ev-line{font-size:12.5px;line-height:1.7;color:var(--ink-2)}
+.ev-param-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ev-result{padding:9px 0;border-bottom:1px solid var(--line-2)}
+.ev-result:last-child{border-bottom:0}
+.ev-result-title{font-size:12.5px;line-height:1.6;color:var(--ink)}
+.ev-result-meta{font-family:var(--font-mono);font-size:10px;color:var(--ink-3);margin-top:3px}
+.ev-result-title a{color:inherit;text-decoration:none}
+.ev-result-title a:hover{text-decoration:underline}
+.src-table{width:100%;border-collapse:collapse;font-size:11.5px}
+.src-table th{text-align:left;font-weight:500;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.06em;color:var(--ink-3);padding:6px 4px;border-bottom:1px solid var(--line)}
+.src-table td{padding:5px 4px;border-bottom:1px solid var(--line-2);color:var(--ink-2)}
+.src-table td.mono{font-size:10px;color:var(--ink-3)}
+.src-table .hit{color:var(--accent);font-family:var(--font-mono);font-size:10.5px}
+.src-table tr.is-blind td{color:var(--red)}
+.src-table tr.is-blind .hit{color:var(--red)}
+
+/* scrollbars */
+.stream::-webkit-scrollbar,.out-body::-webkit-scrollbar,.rail::-webkit-scrollbar,.drawer-body::-webkit-scrollbar,.matrix-wrap::-webkit-scrollbar{width:9px;height:9px}
+.stream::-webkit-scrollbar-thumb,.out-body::-webkit-scrollbar-thumb,.rail::-webkit-scrollbar-thumb,.drawer-body::-webkit-scrollbar-thumb,.matrix-wrap::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:5px;border:2px solid transparent;background-clip:padding-box}
+.stream::-webkit-scrollbar-thumb:hover,.out-body::-webkit-scrollbar-thumb:hover,.rail::-webkit-scrollbar-thumb:hover,.drawer-body::-webkit-scrollbar-thumb:hover,.matrix-wrap::-webkit-scrollbar-thumb:hover{background:var(--scroll-thumb-hover);background-clip:padding-box}
+.stream::-webkit-scrollbar-track,.out-body::-webkit-scrollbar-track,.rail::-webkit-scrollbar-track{background:transparent}
+
+/* responsive */
+@media (max-width:1180px){
+  .panes{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .rail{
+    grid-column:1/-1;display:flex;gap:28px;overflow-x:auto;border-right:0;
+    border-bottom:1px solid var(--line);padding:10px 16px 12px;min-height:0;
+  }
+  .rail-block{margin:0;min-width:210px;flex:1 1 210px}
+  .rail-progress{display:none}
+  .run-title{max-width:26ch}
+  .run-meta .chip--quiet{display:none}
+  .run-actions .theme-switch{display:none}
+}
+@media (max-width:860px){
+  #view-run{height:auto;min-height:100vh;grid-template-rows:auto auto}
+  .runbar{flex-wrap:wrap;gap:10px}
+  .run-actions{width:100%;margin-left:0}
+  .panes{grid-template-columns:1fr;grid-template-rows:auto auto auto;min-height:0}
+  .rail{border-right:0}
+  .stream-pane{border-right:0;border-bottom:1px solid var(--line);min-height:440px;height:60vh}
+  .output-pane{min-height:520px}
+  .out-body{overflow:visible}
+  .home-main{padding:48px 20px 40px}
+  .home-top{padding:14px 20px}
+  .brand-meta{display:none}
+  .home-stats{gap:28px;flex-wrap:wrap}
+  .evi-grid{grid-template-columns:1fr}
+  .theme-switch-label{display:none}
+  .theme-opt span{display:none}
+  .theme-opt{padding:0 8px;height:30px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;scroll-behavior:auto !important}
+}
+</style>
+<script>
+  /* 尽早应用已保存的外观，避免首屏闪烁 */
+  try {
+    var savedTheme = localStorage.getItem('jiansuo-theme-v2');
+    if (savedTheme === 'paper' || savedTheme === 'console' || savedTheme === 'archive') {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  } catch (err) { /* 预览环境可能禁用存储，忽略 */ }
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">跳到主内容</a>
+
+<main id="main">
+  <!-- ================= HOME ================= -->
+  <section id="view-home">
+    <header class="home-top">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="5.2" height="5.2"></rect>
+          <rect x="3" y="9.4" width="5.2" height="5.2"></rect>
+          <rect x="3" y="15.8" width="5.2" height="5.2"></rect>
+          <rect x="9.4" y="3" width="5.2" height="5.2"></rect>
+          <rect x="9.4" y="9.4" width="5.2" height="5.2" fill="currentColor" stroke="none"></rect>
+          <rect x="15.8" y="3" width="5.2" height="5.2"></rect>
+          <rect x="15.8" y="15.8" width="5.2" height="5.2"></rect>
+        </svg>
+        <span class="brand-name">见索</span>
+        <span class="brand-sub">看得见的深度搜索</span>
+      </div>
+      <div class="home-tools">
+        <div class="theme-switch" role="group" aria-label="外观主题">
+          <span class="theme-switch-label">外观</span>
+          <button type="button" class="theme-opt" data-theme-option="paper" aria-pressed="true" aria-label="纸张主题" title="纸张 · 浅色研究报告">
+            <i class="sw sw-paper" aria-hidden="true"></i><span>纸张</span>
+          </button>
+          <button type="button" class="theme-opt" data-theme-option="console" aria-pressed="false" aria-label="控制台主题" title="控制台 · 深色科技">
+            <i class="sw sw-console" aria-hidden="true"></i><span>控制台</span>
+          </button>
+          <button type="button" class="theme-opt" data-theme-option="archive" aria-pressed="false" aria-label="档案主题" title="档案 · 暖色研究">
+            <i class="sw sw-archive" aria-hidden="true"></i><span>档案</span>
+          </button>
+        </div>
+        <span class="brand-meta">元宝搜索 · 有效信源库 v1</span>
+      </div>
+    </header>
+
+    <div class="home-main">
+      <p class="kicker">Deep search / evidence first</p>
+      <h1 class="home-title">让证据先于结论。</h1>
+      <p class="home-lede">
+        输入一个论断。模型判断该查哪些维度、查哪些信源、切哪几个时间窗——每一次检索的 query、参数和返回结果，都摊开在你面前。
+      </p>
+
+      <form class="ask" id="ask-form" novalidate>
+        <label class="field-label" for="claim-input">论断或问题</label>
+        <div class="ask-box">
+          <textarea id="claim-input" rows="2" maxlength="120" placeholder="例如：飞信是被微信打死的"></textarea>
+          <div class="ask-actions">
+            <div class="provider">
+              <label for="llm-provider">LLM</label>
+              <select class="select" id="llm-provider">
+                <option value="deepseek">DeepSeek</option>
+                <option value="glm">GLM</option>
+                <option value="hunyuan">混元</option>
+                <option value="custom" selected>自定义（OpenAI 兼容）</option>
+              </select>
+            </div>
+            <button class="btn btn--primary" type="submit" id="start-btn">开始深搜</button>
+          </div>
+        </div>
+        <p class="field-hint" id="ask-hint">内置两个完整案例；输入其他问题会真实调用元宝搜索与模型，约 2–4 分钟。</p>
+      </form>
+
+      <div class="examples">
+        <span class="examples-label">完整案例</span>
+        <button class="example" type="button" data-case="feixin">飞信是被微信打死的</button>
+        <button class="example" type="button" data-case="mi">小米SU7 是不是营销大于产品</button>
+      </div>
+
+      <div class="home-stats">
+        <div><span class="stat-num">16</span><span class="stat-cap">实测有效信源</span></div>
+        <div><span class="stat-num">6</span><span class="stat-cap">已确认盲区</span></div>
+        <div><span class="stat-num">23</span><span class="stat-cap">单次调用上限</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CONSOLE ================= -->
+  <section id="view-run" hidden>
+    <header class="runbar">
+      <button class="icon-btn" id="btn-home" type="button" aria-label="返回首页">←</button>
+      <div class="run-claim">
+        <p class="run-label">正在审计</p>
+        <h1 class="run-title" id="run-title">飞信是被微信打死的</h1>
+      </div>
+      <div class="run-meta">
+        <span class="chip chip--quiet" id="run-provider">DeepSeek</span>
+        <span class="chip chip--live" id="run-status">分析中</span>
+        <span class="mono" id="run-calls">0 / 23</span>
+        <span class="mono" id="run-elapsed">00:00</span>
+        <span class="chip chip--quiet" id="run-mode">离线回放 · 2026-11 实测</span>
+      </div>
+      <div class="run-actions">
+        <div class="theme-switch theme-switch--compact" role="group" aria-label="外观主题">
+          <span class="theme-switch-label">外观</span>
+          <button type="button" class="theme-opt" data-theme-option="paper" aria-pressed="true" aria-label="纸张主题" title="纸张 · 浅色研究报告">
+            <i class="sw sw-paper" aria-hidden="true"></i><span>纸张</span>
+          </button>
+          <button type="button" class="theme-opt" data-theme-option="console" aria-pressed="false" aria-label="控制台主题" title="控制台 · 深色科技">
+            <i class="sw sw-console" aria-hidden="true"></i><span>控制台</span>
+          </button>
+          <button type="button" class="theme-opt" data-theme-option="archive" aria-pressed="false" aria-label="档案主题" title="档案 · 暖色研究">
+            <i class="sw sw-archive" aria-hidden="true"></i><span>档案</span>
+          </button>
+        </div>
+        <button class="btn btn--line btn--sm" id="btn-pause" type="button" aria-pressed="false">暂停</button>
+        <button class="btn btn--quiet btn--sm" id="btn-stop" type="button">中止</button>
+        <button class="btn btn--quiet btn--sm" id="btn-restart" type="button">重跑</button>
+        <button class="btn btn--primary btn--sm" id="btn-report" type="button" disabled>下载报告</button>
+      </div>
+    </header>
+
+    <div class="panes">
+      <aside class="rail" aria-label="运行概览">
+        <section class="rail-block">
+          <div class="rail-head"><h3>分析维度</h3><span class="count" id="rail-dim-count">0 / 6</span></div>
+          <ul class="rail-list" id="rail-dims"></ul>
+        </section>
+        <section class="rail-block">
+          <div class="rail-head"><h3>信源</h3><span class="count" id="rail-src-count">0 / 16</span></div>
+          <ul class="rail-list" id="rail-sources"></ul>
+          <button class="rail-link" id="btn-all-sources" type="button">查看全部有效信源</button>
+        </section>
+        <section class="rail-block">
+          <div class="rail-head"><h3>时间窗</h3><span class="count" id="rail-win-count">0</span></div>
+          <ul class="rail-list" id="rail-windows"></ul>
+        </section>
+        <section class="rail-block rail-progress">
+          <div class="rail-head"><h3>进度</h3></div>
+          <div class="progress"><span class="progress-bar" id="rail-progress-bar"></span></div>
+          <p class="progress-text" id="rail-progress-text">0 / 27 次调用</p>
+        </section>
+      </aside>
+
+      <section class="stream-pane" aria-label="决策与执行流">
+        <header class="pane-head">
+          <h3>决策与执行</h3>
+          <span class="pane-meta" id="stream-count">0 步</span>
+        </header>
+        <div class="stream" id="stream"></div>
+      </section>
+
+      <section class="output-pane" aria-label="检索产出">
+        <div class="tabs" role="tablist" id="out-tabs"></div>
+        <div class="out-body" id="out-body" role="tabpanel"></div>
+      </section>
+    </div>
+  </section>
+</main>
+
+<dialog class="drawer" id="evidence-dialog" aria-labelledby="ev-title">
+  <div class="drawer-head">
+    <div>
+      <p class="drawer-kicker" id="ev-kicker">证据链</p>
+      <h2 class="drawer-title" id="ev-title">检索详情</h2>
+    </div>
+    <button class="icon-btn" id="ev-close" type="button" aria-label="关闭证据面板">✕</button>
+  </div>
+  <div class="drawer-body" id="ev-body"></div>
+</dialog>
+
+<div class="sr-only" id="live" role="status" aria-live="polite"></div>
+
+<script src="/case/mi.js"></script>
+<script src="/case/feixin.js"></script>
+<script>/* 见索 · 演示数据
+   检索结果均取自 2026-11 的元宝搜索实测记录（6 个查询 × 25 个域名的信源命中率调研 + Site / Freshness / Industry 组合验证），
+   矩阵摘要与审计结论为原型中的示例分析文本。 */
+
+const SOURCE_LIBRARY = [
+  { name: '腾讯新闻', domain: 'news.qq.com', hit: 100, type: '新闻' },
+  { name: '微博', domain: 'weibo.com', hit: 100, type: '社交' },
+  { name: '百度百科', domain: 'baike.baidu.com', hit: 100, type: '知识' },
+  { name: '36氪', domain: '36kr.com', hit: 100, type: '科技' },
+  { name: '澎湃新闻', domain: 'thepaper.cn', hit: 100, type: '新闻' },
+  { name: '掘金', domain: 'juejin.cn', hit: 100, type: '科技' },
+  { name: '少数派', domain: 'sspai.com', hit: 100, type: '科技' },
+  { name: '搜狐', domain: 'sohu.com', hit: 100, type: '新闻' },
+  { name: '新浪', domain: 'sina.com.cn', hit: 100, type: '新闻' },
+  { name: '新华社', domain: 'xinhuanet.com', hit: 100, type: '新闻' },
+  { name: '网易', domain: '163.com', hit: 83, type: '新闻' },
+  { name: '界面新闻', domain: 'jiemian.com', hit: 83, type: '新闻' },
+  { name: '哔哩哔哩', domain: 'bilibili.com', hit: 83, type: '视频' },
+  { name: '人民日报', domain: 'people.com.cn', hit: 83, type: '新闻' },
+  { name: '凤凰网', domain: 'ifeng.com', hit: 67, type: '新闻' },
+  { name: '财新网', domain: 'caixin.com', hit: 67, type: '财经' }
+];
+
+const BLIND_SPOTS = [
+  { name: '知乎', domain: 'zhihu.com', note: '完全缺失' },
+  { name: '豆瓣', domain: 'douban.com', note: '完全缺失' },
+  { name: '百度贴吧', domain: 'tieba.baidu.com', note: '完全缺失' },
+  { name: 'cnBeta', domain: 'cnbeta.com', note: '完全缺失' },
+  { name: '政府网站', domain: 'gov.cn', note: '完全缺失' },
+  { name: '天涯', domain: 'tianya.cn', note: '完全缺失' }
+];
+
+/* =====================================================================
+   案例一：飞信是被微信打死的
+   ===================================================================== */
+const CASE_FEIXIN = {
+  id: 'feixin',
+  claim: '飞信是被微信打死的',
+  claimMeta: '因果归因型论断 · 2007–2022',
+  providerLabel: 'DeepSeek',
+
+  analysis: {
+    kicker: '01 / 问题分析',
+    title: '因果归因型论断，且带绝对化表述',
+    text: '「被打死」把飞信的失败归给单一外部对手。这类论断要同时回答两件事：因果链是否成立，以及不同信源在不同年代是否在讲同一个故事。',
+    facts: [
+      ['问题类型', '因果归因 · 历史复盘'],
+      ['时间跨度', '2007 – 2022 停服'],
+      ['核心检索词', '飞信 微信 中国移动'],
+      ['潜在立场', '运营商 / 腾讯 / 门户 / 社交用户']
+    ]
+  },
+
+  dims: [
+    { id: 'direct', name: '直接搜索', on: true, why: '先看自然结果里的信源分布，确认公共叙事基线。' },
+    { id: 'multi', name: '多信源对比', on: true, why: '论断有争议，运营商、门户、社交平台各有立场。' },
+    { id: 'time', name: '时间演变', on: true, why: '叙事会随时间改写；窗口由真实日期分布决定，不按语义猜。' },
+    { id: 'counter', name: '反例检验', on: true, why: '因果归因 + 绝对化措辞，必须主动构造反例 query。' },
+    { id: 'deep', name: '深层归因', on: false, why: '反例检验已覆盖「是否有别的死因」，再挖前因会稀释主问题。' },
+    { id: 'cross', name: '交叉验证', on: false, why: '不是可量化事实（如融资额、日期），没有单一数字可核。' }
+  ],
+
+  sources: [
+    { name: '腾讯新闻', domain: 'news.qq.com', hit: 100, why: '立场偏向微信一侧，正因如此必须看它怎么讲。' },
+    { name: '搜狐', domain: 'sohu.com', hit: 100, why: '停服公告与门户盘点密集，标题归因差异大。' },
+    { name: '微博', domain: 'weibo.com', hit: 100, why: '散户记忆与情绪化复盘最集中的地方。' },
+    { name: '澎湃新闻', domain: 'thepaper.cn', hit: 100, why: '行业分析视角，情绪浓度低。' },
+    { name: '百度百科', domain: 'baike.baidu.com', hit: 100, why: '提供时间线锚点，用来校核事件节点。' },
+    { name: '新浪', domain: 'sina.com.cn', hit: 100, why: '综合门户转载量大；用来检验日期字段质量与假盲区。' }
+  ],
+
+  windows: [
+    { id: 'w1', label: '2017–2019', title: '抢救与失速', freshness: '2017-01-01,2019-12-31', why: '探测到的最早内容只到 2017 年；这一段只有零星盘点。' },
+    { id: 'w2', label: '2020–2022', title: '停服与盖棺', freshness: '2020-01-01,2022-12-31', why: '2022 年一条就占全部结果的一半，停服是天然分界。' },
+    { id: 'w3', label: '2023–至今', title: '回望与重估', freshness: '2023-01-01,2026-11-07', why: '停服后的复盘、怀旧与行业注脚。' }
+  ],
+
+  /* 矩阵宽检索用的核心关键词：由问题分析产出，不用 direct 的长 query */
+  coreKeywords: '飞信 微信 中国移动',
+
+  /* 时间窗探测：先自然检索一次，统计真实日期分布，再决定怎么切窗 */
+  probe: {
+    query: '飞信 微信 中国移动',
+    count: 10,
+    dated: 10,
+    span: '2017-10 – 2026-08',
+    ms: 356,
+    probe: true,
+    label: '时间窗探测',
+    titles: [
+      { t: '当年搞出了"飞信"的师傅,如今竟扛着200多个国家的聊天､弹幕和日常?', s: '腾讯新闻', d: '2025/09/04' },
+      { t: '飞信没有败给微信,而是败给了时代', s: '搜狐', d: '2022/07/26' },
+      { t: '当年拯救大学生钱包的飞信 通信时代变迁的青春记忆', s: '微博', d: '2026/08/24' }
+    ],
+    years: [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026],
+    counts: [1, 0, 2, 0, 0, 5, 0, 0, 1, 1],
+    note: '10 条结果全部带日期字段；最早 2017-10，最晚 2026-08，2022 年占一半。'
+  },
+
+  queries: [
+    { dim: '直接搜索', q: '飞信 微信 死亡', intent: '看公共叙事基线，结果里出现哪几种归因。' },
+    { dim: '反例检验', q: '飞信 没有 被微信 打败', intent: '主动找否定表述，而不是等它自然出现。' },
+    { dim: '反例检验', q: '飞信 停服 原因 体制', intent: '找非竞争归因，检验是否存在别的死因。' },
+    { dim: '矩阵 · 多信源 × 时间', q: '飞信 微信 中国移动 × Site × Freshness', intent: '用 3 个核心词宽检索；长 query 叠三重约束会把召回压垮。' }
+  ],
+
+  direct: {
+    id: 'd1', query: '飞信 微信 死亡', site: '', freshness: '', count: 10, ms: 412,
+    titles: [
+      { t: '飞信停航 运营商不舍社交赛道', s: '中国青年网', d: '2022/07/26' },
+      { t: '拥有5亿用户,却被微信干死,前掌门人谈失败原因,网友评论炸锅', s: '财经头条', d: '2019/08/07' },
+      { t: '飞信即将落幕:赶上了时代,却输给了自己', s: '人民日报', d: '2022/07/28' }
+    ],
+    note: '自然结果里已经同时出现两种归因：被微信干死 / 输给了自己。'
+  },
+
+  counterSearches: [
+    {
+      id: 'c1', query: '飞信 没有 被微信 打败', site: '', freshness: '', count: 4, ms: 352,
+      titles: [
+        { t: '飞信没有败给微信,而是败给了时代', s: '搜狐', d: '2022/07/26' },
+        { t: '飞信即将落幕:赶上了时代,却输给了自己', s: '人民日报', d: '2022/07/28' }
+      ],
+      note: '反例 query 一搜就命中直接的否定表述。'
+    },
+    {
+      id: 'c2', query: '飞信 停服 原因 体制', site: '', freshness: '', count: 7, ms: 388,
+      titles: [
+        { t: '飞信即将落幕:赶上了时代,却输给了自己', s: '人民日报', d: '2022/07/28' },
+        { t: '中国移动宣布和飞信将停服,即时通讯赛道竞争进入2.0阶段', s: '澎湃新闻', d: '2022/07/26' },
+        { t: '飞信停航 运营商不舍社交赛道', s: '中国青年网', d: '2022/07/26' }
+      ],
+      note: '非竞争归因存在，且集中在官方媒体与行业媒体。'
+    }
+  ],
+
+  matrix: {
+    query: '飞信 微信 中国移动',
+    cols: [
+      { id: 'w1', label: '2017–2019', range: '2017.01–2019.12', freshness: '2017-01-01,2019-12-31' },
+      { id: 'w2', label: '2020–2022', range: '2020.01–2022.12', freshness: '2020-01-01,2022-12-31' },
+      { id: 'w3', label: '2023–至今', range: '2023.01–至今', freshness: '2023-01-01,2026-11-07' }
+    ],
+    rows: [
+      {
+        id: 'qq', name: '腾讯新闻', domain: 'news.qq.com', hit: 100,
+        cells: {
+          w1: { count: 0, reason: '该信源 2017–2019 没有飞信相关收录；同期不限信源检索有结果，属于信源缺口。' },
+          w2: {
+            count: 10, ms: 402,
+            summary: '「比微信还早4年」与「输给了自己」双重定调',
+            titles: [
+              { t: '比微信还早4年,5亿用户的社交App,死了!', s: '腾讯新闻', d: '2022/07/25' },
+              { t: '飞信即将落幕:赶上了时代,却输给了自己', s: '腾讯新闻', d: '2022/07/28' },
+              { t: '联通与腾讯再度联手,是新一轮"国有化"吗?', s: '腾讯新闻', d: '2022/11/06' }
+            ]
+          },
+          w3: {
+            count: 6, ms: 341,
+            summary: '飞信退为行业注脚，叙事转向「融云」',
+            titles: [
+              { t: '当年搞出了"飞信"的师傅,如今竟扛着200多个国家的聊天､弹幕和日常?', s: '腾讯新闻', d: '2025/09/04' }
+            ]
+          }
+        }
+      },
+      {
+        id: 'sohu', name: '搜狐', domain: 'sohu.com', hit: 100,
+        cells: {
+          w1: {
+            count: 3, ms: 264,
+            summary: '盘点式提及：车载微信与「停服」前夜',
+            titles: [
+              { t: '再也不用担心开车看微信出车祸了 看马化腾在汽车上放的大招', s: '搜狐', d: '2019/08/27' }
+            ]
+          },
+          w2: {
+            count: 3, ms: 288,
+            summary: '「没有败给微信，而是败给了时代」',
+            titles: [
+              { t: '飞信没有败给微信,而是败给了时代', s: '搜狐', d: '2022/07/26' },
+              { t: '飞信落幕!运营15年,注册用户达5亿,中国移动宣布:和飞信将停止服务!', s: '搜狐', d: '2022/07/25' }
+            ]
+          },
+          w3: { count: 0, reason: '近三年该信源没有再收录飞信相关报道。' }
+        }
+      },
+      {
+        id: 'weibo', name: '微博', domain: 'weibo.com', hit: 100,
+        cells: {
+          w1: { count: 0, reason: '微博内容在 2019 年以前几乎不进入该索引。' },
+          w2: {
+            count: 10, ms: 355,
+            summary: '「5亿人用过」「难逃覆灭」：情绪化复盘主场',
+            titles: [
+              { t: '5 亿人用过!微信最大对手,凉了', s: '微博', d: '2022/08/14' },
+              { t: '比微信还早4年,5亿用户的社交App,死了!', s: '微博', d: '2022/07/25' },
+              { t: '坐拥5亿用户却难逃覆灭:飞信是如何走向衰败的?', s: '微博', d: '2022/07/26' }
+            ]
+          },
+          w3: {
+            count: 4, ms: 301,
+            summary: '叙事从「归因」转为「怀旧」',
+            titles: [
+              { t: '当年拯救大学生钱包的飞信 通信时代变迁的青春记忆', s: '微博', d: '2026/08/24' }
+            ]
+          }
+        }
+      },
+      {
+        id: 'thepaper', name: '澎湃新闻', domain: 'thepaper.cn', hit: 100,
+        cells: {
+          w1: { count: 0, reason: '该信源 2017–2019 无命中的飞信报道。' },
+          w2: {
+            count: 10, ms: 372,
+            summary: '行业视角：即时通讯竞争进入 2.0 阶段',
+            titles: [
+              { t: '中国移动宣布和飞信将停服,即时通讯赛道竞争进入2.0阶段', s: '澎湃新闻', d: '2022/07/26' }
+            ]
+          },
+          w3: {
+            count: 5, ms: 296,
+            summary: '与腾讯同源的融云叙事，飞信成为注脚',
+            titles: [
+              { t: '当年搞出了"飞信"的师傅,如今竟扛着200多个国家的聊天､弹幕和日常?', s: '澎湃新闻', d: '2025/09/05' }
+            ]
+          }
+        }
+      },
+      {
+        id: 'baike', name: '百度百科', domain: 'baike.baidu.com', hit: 100,
+        cells: {
+          w1: {
+            count: 1, ms: 244,
+            summary: '「抢救中」：2017 年还没有被判死',
+            titles: [
+              { t: '移动再度"抢救"飞信,曾经的免费短信神器,现在真的还有救吗?', s: '百度百科', d: '2017/10/29' }
+            ]
+          },
+          w2: { count: 0, reason: '词条在该窗口没有更新快照。' },
+          w3: {
+            count: 2, ms: 231,
+            summary: '词条定稿：和飞信 2022 年停止服务',
+            titles: [
+              { t: '飞信（百度百科词条）', s: '百度百科', d: '2025/12/08' }
+            ]
+          }
+        }
+      },
+      {
+        id: 'sina', name: '新浪', domain: 'sina.com.cn', hit: 100, note: '补检判定：日期缺失假盲区',
+        cells: {
+          w1: { count: 0, fake: true, reason: '加时间窗后 0 条：内容存在，但缺日期字段。' },
+          w2: { count: 0, fake: true, reason: '加时间窗后 0 条：内容存在，但缺日期字段。' },
+          w3: { count: 0, fake: true, reason: '加时间窗后 0 条：内容存在，但缺日期字段。' }
+        },
+        fallback: {
+          query: '飞信 微信 中国移动', site: 'sina.com.cn', count: 4, ms: 352,
+          titles: [
+            { t: '新浪首页', s: '新浪', d: '无日期' },
+            { t: '新浪科技频道', s: '新浪', d: '无日期' }
+          ],
+          note: '去掉时间窗能取回 4 条，但全部没有日期字段，无法判断落在哪个窗口。'
+        }
+      }
+    ]
+  },
+
+  insight: '18 格里 10 格有结果、5 格真盲区、3 格假盲区。真盲区集中在 2017–2019（腾讯 / 微博 / 澎湃都没有收录）与百度的 2020–2022 缺口；假盲区是新浪整行——去掉时间窗能取回 4 条，但全部没有日期字段，属于「日期缺失」而不是「没有内容」。',
+
+  evidence: {
+    support: [
+      { src: '腾讯新闻 · 2022/07/25', title: '比微信还早4年，5亿用户的社交App，死了！', note: '同一句里并列「早 4 年」与「死了」，因果暗示最强。' },
+      { src: '微博 · 2022/07/26', title: '坐拥5亿用户却难逃覆灭：飞信是如何走向衰败的？', note: '社交平台的复盘把衰败归因于微信的替代。' },
+      { src: '财经头条 · 2019/08/07', title: '拥有5亿用户，却被微信干死', note: '聚合站标题，措辞最绝对，可信度记为「中」。' }
+    ],
+    counter: [
+      { src: '搜狐 · 2022/07/26', title: '飞信没有败给微信，而是败给了时代', note: '直接的否定表述，归因转向移动互联网时代。' },
+      { src: '人民日报 · 2022/07/28', title: '飞信即将落幕：赶上了时代，却输给了自己', note: '权威媒体把原因指向内部体制与决策。' },
+      { src: '百度百科 · 2017/10/29', title: '移动再度「抢救」飞信，曾经的免费短信神器，现在真的还有救吗？', note: '2017 年飞信仍在运营自救，晚于微信崛起 6 年，时间线不支持「一击致命」。' },
+      { src: '推理 · 无检索来源', title: 'QQ 并没有被微信杀死', note: '同公司、同场景的替代没有导致死亡，说明微信不是充分条件。此条为推理，不是检索结果。', inferred: true }
+    ]
+  },
+
+  verdict: {
+    level: '中低',
+    score: 38,
+    summary: '「微信夺走了飞信的场景」成立；「飞信是被微信打死的」作为唯一死因不成立。',
+    rows: [
+      ['时间线', '微信 2011 年崛起，飞信 2022 年才停服，中间有 2017 年的自救和 5 亿注册用户。'],
+      ['归因', '停服当年的主流定调是「输给了自己」「败给了时代」，不是「被微信打死」。'],
+      ['信源结构', '强因果表述集中在门户标题与社交复盘；官方与行业媒体一致转向时代、体制归因。']
+    ],
+    blind: '8 / 18 格（5 真盲区 + 3 日期缺失假盲区）',
+    counterCount: '3 个（时代归因 / 体制归因 / 时间线）',
+    drift: '2022 年前「竞争失败」→ 2023 年后「青春记忆」'
+  },
+
+  tabs: [
+    { id: 'matrix', label: '叙事矩阵' },
+    { id: 'evidence', label: '支持与反例' },
+    { id: 'card', label: '诊断卡' }
+  ]
+};
+
+/* =====================================================================
+   案例二：双减政策有什么影响
+   ===================================================================== */
+const CASE_SHUANGJIAN = {
+  id: 'shuangjian',
+  claim: '双减政策有什么影响',
+  claimMeta: '影响评估型问题 · 2021 至今',
+  providerLabel: 'GLM',
+
+  analysis: {
+    kicker: '01 / 问题分析',
+    title: '这是影响评估问题，不是可判真假的论断',
+    text: '「有什么影响」要先拆成三层：政策目标是什么、影响落在谁身上、哪些影响被多个来源证实。它没有单一靶子，所以不做反例检验。',
+    facts: [
+      ['问题类型', '影响评估 · 公共政策'],
+      ['政策起点', '2021 年 7 月'],
+      ['核心检索词', '双减 校外培训 教育部'],
+      ['受影响方', '学校 / 教培机构 / 家庭']
+    ]
+  },
+
+  dims: [
+    { id: 'direct', name: '直接搜索', on: true, why: '先看政策文本和官方定调在自然结果里的分布。' },
+    { id: 'multi', name: '多信源对比', on: true, why: '政媒、商业媒体、科技媒体对同一政策的叙事差异明显。' },
+    { id: 'deep', name: '深层归因', on: true, why: '要回答影响怎么传导，需要追问前因和中间环节。' },
+    { id: 'time', name: '时间演变', on: false, why: '2021 年至今叙事基本稳定，切时间窗的收益低于调用成本。' },
+    { id: 'counter', name: '反例检验', on: false, why: '不是因果断言，没有明确的靶子可反驳。' },
+    { id: 'cross', name: '交叉验证', on: false, why: '影响是多维统计量，没有单一数字可以交叉核对。' }
+  ],
+
+  sources: [
+    { name: '人民网', domain: 'people.com.cn', hit: 83, why: '政策原文与官方解读的第一落点。' },
+    { name: '新华社', domain: 'xinhuanet.com', hit: 100, why: '通稿口径，用来校准官方叙事。' },
+    { name: '澎湃新闻', domain: 'thepaper.cn', hit: 100, why: '教育条线深度报道，常给出家长侧证据。' },
+    { name: '网易', domain: '163.com', hit: 83, why: '转载聚合多，噪声大但覆盖面广。' },
+    { name: '36氪', domain: '36kr.com', hit: 100, why: '教培行业与商业模式的视角。' },
+    { name: '掘金', domain: 'juejin.cn', hit: 100, why: '从业者视角，一线撤退经验密集。' }
+  ],
+
+  windows: [],
+
+  queries: [
+    { dim: '直接搜索', q: '双减 政策 影响', intent: '看官方定调与政策文本的自然分布。' },
+    { dim: '多信源对比', q: '双减 政策 × Site', intent: '固定 query 只换信源，比较叙事差异。' },
+    { dim: '深层归因', q: '双减 为什么 出台', intent: '找政策的前因。' },
+    { dim: '深层归因', q: '双减 教培 资本', intent: '看行业侧的传导链条。' },
+    { dim: '深层归因', q: '双减 家长 焦虑 补课', intent: '看家庭侧是否真的减负。' },
+    { dim: '定向补充', q: '双减 校外培训 × Industry=gov', intent: '政策类补官方视角；Industry 与 Site 二选一，不叠加。' }
+  ],
+
+  direct: {
+    id: 'd1', query: '双减 政策 影响', site: '', freshness: '', count: 10, ms: 406,
+    titles: [
+      { t: '"双减"撬动基础教育改革大棋局', s: '中华人民共和国教育部', d: '2022/05/25' },
+      { t: '落实"双减"政策加速推进教育现代化', s: '人民网', d: '2024/10/21' },
+      { t: '深刻认识"双减"政策的重要意义', s: '全国哲学社会科学工作办公室', d: '2022/07/12' }
+    ],
+    note: '自然结果几乎全是政策成效叙事，没有家长侧声音。'
+  },
+
+  timeSearches: [],
+
+  counterSearches: [],
+
+  multiSearches: [
+    {
+      id: 'm1', source: '人民网', query: '双减 政策', site: 'people.com.cn', freshness: '', count: 10, ms: 392,
+      titles: [
+        { t: '"双减"政策落地,如何看?怎么办?', s: '人民网', d: '2021/08/06' },
+        { t: '丛中笑:在"双减"中做好科学教育的"加法"', s: '人民网', d: '2023/06/21' }
+      ],
+      note: '官方解读：怎么看、怎么办。'
+    },
+    {
+      id: 'm2', source: '新华社', query: '双减 政策', site: 'xinhuanet.com', freshness: '', count: 10, ms: 401,
+      titles: [
+        { t: '推动"双减"进一步发挥实效', s: '新华社', d: '2022/02/09' },
+        { t: '"作业熔断机制"给孩子的成长"松松绑"', s: '新华社', d: '2024/12/11' }
+      ],
+      note: '通稿口径：执行进展与作业管理。'
+    },
+    {
+      id: 'm3', source: '澎湃新闻', query: '双减 政策', site: 'thepaper.cn', freshness: '', count: 10, ms: 384,
+      titles: [
+        { t: '理解教育"双减"落地三年,家长更愿意生娃了吗?', s: '澎湃新闻', d: '2024/06/12' },
+        { t: '读懂"双减"背后的教育逻辑', s: '澎湃新闻', d: '2021/12/22' }
+      ],
+      note: '深度报道：把政策和生育、教育逻辑连起来。'
+    },
+    {
+      id: 'm4', source: '网易', query: '双减 政策', site: '163.com', freshness: '', count: 10, ms: 366,
+      titles: [
+        { t: '双减政策三年催生生育潮?华东师大重磅研究揭秘背后真相', s: '网易', d: '2024/06/14' },
+        { t: '中小学迎来"好消息":上学时间调整,预计从10月份开始实施', s: '网易', d: '2025/08/08' }
+      ],
+      note: '聚合号标题党比例高，需要回到原始研究。'
+    },
+    {
+      id: 'm5', source: '36氪', query: '双减 政策', site: '36kr.com', freshness: '', count: 10, ms: 358,
+      titles: [
+        { t: '"双减"政策落地后,教培机构"转型求生"进行时', s: '36氪', d: '2021/08/02' }
+      ],
+      note: '行业视角：转型与裁员。'
+    },
+    {
+      id: 'm6', source: '掘金', query: '双减 政策', site: 'juejin.cn', freshness: '', count: 10, ms: 349,
+      titles: [
+        { t: '万亿赛道"高空坠落",教培机构上演"大撤退"', s: '掘金', d: '2021/07/27' }
+      ],
+      note: '从业者视角：一线撤退叙事。'
+    }
+  ],
+
+  deepSearches: [
+    {
+      id: 'g1', query: '双减 为什么 出台', site: '', freshness: '', count: 8, ms: 374,
+      titles: [
+        { t: '读懂"双减"背后的教育逻辑', s: '澎湃新闻', d: '2021/12/22' },
+        { t: '"双减"撬动基础教育改革大棋局', s: '中华人民共和国教育部', d: '2022/05/25' }
+      ],
+      note: '前因：校外培训资本化与义务教育内卷。'
+    },
+    {
+      id: 'g2', query: '双减 教培 资本', site: '', freshness: '', count: 9, ms: 361,
+      titles: [
+        { t: '万亿赛道"高空坠落",教培机构上演"大撤退"', s: '掘金', d: '2021/07/27' },
+        { t: '"双减"政策落地后,教培机构"转型求生"进行时', s: '36氪', d: '2021/08/02' }
+      ],
+      note: '中间环节：资本退场 → 机构转型/关停 → 从业者流出。'
+    },
+    {
+      id: 'g3', query: '双减 家长 焦虑 补课', site: '', freshness: '', count: 6, ms: 397,
+      titles: [
+        { t: '菩提睿见|"双减"之下,补课换个马甲又回来?', s: '微博', d: '2025/07/06' },
+        { t: '双减政策三年催生生育潮?华东师大重磅研究揭秘背后真相', s: '网易', d: '2024/06/14' }
+      ],
+      note: '家庭侧出现反向证据：需求没有消失，只是换了形式。'
+    }
+  ],
+
+  /* Industry 定向补充：政策类补官方视角，不与 Site 叠加 */
+  industry: {
+    id: 'i1', query: '双减 校外培训', industry: 'gov', count: 10, ms: 418, label: '定向补充',
+    titles: [
+      { t: '"双减"撬动基础教育改革大棋局', s: '中华人民共和国教育部', d: '2022/05/25' },
+      { t: '【知识库】深刻认识"双减"政策的重要意义', s: '广西防城港港口区人民政府', d: '2026/07/10' },
+      { t: '臧伟:深刻认识"双减"政策的重要意义', s: '全国哲学社会科学工作办公室', d: '2022/07/12' }
+    ],
+    note: 'Industry=gov 直接命中政府门户与政策原文，绕开 Site=gov.cn 的域名盲区。'
+  },
+
+  narrative: {
+    summary: '6 个信源可以分成三种叙事：官方口径讲「怎么看、怎么办」，行业媒体讲「撤退与转型」，聚合与社交媒体讲「家长焦虑与补课回潮」。三种叙事并不矛盾，它们描述的是同一条传导链的不同环节。另有 Industry=gov 补回的政府门户与政策原文，作为官方语境基线。',
+    rows: [
+      { src: '人民网', domain: 'people.com.cn', tone: '政策成效', sample: '「双减」政策落地，如何看？怎么办？', kind: 'official' },
+      { src: '新华社', domain: 'xinhuanet.com', tone: '执行进展', sample: '推动「双减」进一步发挥实效', kind: 'official' },
+      { src: '澎湃新闻', domain: 'thepaper.cn', tone: '政策逻辑', sample: '读懂「双减」背后的教育逻辑', kind: 'deep' },
+      { src: '36氪', domain: '36kr.com', tone: '行业转型', sample: '教培机构「转型求生」进行时', kind: 'industry' },
+      { src: '掘金', domain: 'juejin.cn', tone: '从业者撤退', sample: '万亿赛道「高空坠落」', kind: 'industry' },
+      { src: '网易', domain: '163.com', tone: '聚合·待核验', sample: '双减政策三年催生生育潮？华东师大研究', kind: 'noisy' }
+    ]
+  },
+
+  tree: [
+    {
+      q: '为什么出台',
+      a: '校外培训资本化叠加义务教育内卷，政策目标是让教育回到校内。',
+      src: '澎湃新闻 · 2021/12/22', flag: ''
+    },
+    {
+      q: '怎么落地',
+      a: '学科类机构压减、校内课后服务、作业与考试管理三条线同时推进。',
+      src: '人民网 · 2021/08/06', flag: ''
+    },
+    {
+      q: '影响传到行业',
+      a: '资本退场，机构转型或关停，从业者大规模流出。多源一致。',
+      src: '掘金 · 2021/07/27 / 36氪 · 2021/08/02', flag: ''
+    },
+    {
+      q: '影响传到家庭',
+      a: '需求没有消失，补课转向更隐蔽的形式；家长体感与官方口径存在分歧。',
+      src: '微博 · 2025/07/06', flag: '分歧证据'
+    },
+    {
+      q: '影响传到人口',
+      a: '有研究讨论「双减」与生育意愿的关系，但目前只看到单一来源的转述。',
+      src: '网易 · 2024/06/14', flag: '单源待核验'
+    }
+  ],
+
+  conclusion: {
+    level: '中高',
+    score: 72,
+    summary: '影响真实存在，但方向分层：行业侧证据一致，家庭侧存在分歧，人口侧证据不足。',
+    rows: [
+      ['一致证据', '政策目标、校内减负、教培行业收缩：官方、行业、深度报道三类来源互相印证。'],
+      ['分歧证据', '家长端是否真的减负：出现「补课换马甲」「焦虑转移」的反向证据。'],
+      ['待核验', '「双减」与生育意愿的因果关系，目前只看到单一来源转述，需要回到原始研究。']
+    ],
+    tags: ['行业侧 · 强', '家庭侧 · 中', '人口侧 · 弱']
+  },
+
+  tabs: [
+    { id: 'narrative', label: '叙事对照' },
+    { id: 'tree', label: '深层归因' },
+    { id: 'card', label: '结论卡' }
+  ]
+};
+
+const CASES = {
+  feixin: window.CASE_FEIXIN_NEW,
+  mi: window.CASE_MI
+};
+</script>
+<script>/* 见索 · 原型交互
+   流式决策 + 检索执行 + 矩阵逐格填充 + 证据下钻 + Markdown 报告导出 */
+(function () {
+  'use strict';
+
+  window.addEventListener('error', function (e) {
+    try {
+      var h = document.querySelector('#ask-hint');
+      if (h) { h.textContent = '页面脚本错误：' + (e && e.message ? e.message : e); h.classList.add('is-warn'); }
+    } catch (_) {}
+  });
+
+  (function backendStatus() {
+    try {
+      fetch('/api/health', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+        var m = document.querySelector('.brand-meta');
+        if (m) m.textContent = '元宝搜索 · 后端已连接' + (d && d.default_provider ? '（' + d.default_provider + '）' : '');
+      }).catch(function () {
+        var m = document.querySelector('.brand-meta');
+        if (m) m.textContent = '⚠ 后端未连接：请通过 http://127.0.0.1:8011 打开';
+      });
+    } catch (_) {}
+  })();
+
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+
+  const state = {
+    caseData: null,
+    custom: false,
+    paused: false,
+    aborted: false,
+    running: false,
+    done: false,
+    calls: 0,
+    total: 0,
+    startedAt: 0,
+    timer: null,
+    activeTab: null,
+    streamStick: true,
+    stepCount: 0,
+    runId: 0,
+    provider: 'DeepSeek',
+    cellState: {},
+    cellData: {},
+    liveController: null,
+    liveAborted: false
+  };
+
+  /* ---------------- utilities ---------------- */
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async function tick(ms) {
+    let left = ms;
+    while (left > 0) {
+      if (state.aborted) return false;
+      if (state.paused) { await sleep(140); continue; }
+      const step = Math.min(70, left);
+      await sleep(step);
+      left -= step;
+    }
+    return !state.aborted;
+  }
+
+  function announce(text) {
+    const live = $('#live');
+    if (live) live.textContent = text;
+  }
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function timeLabel(sec) {
+    return pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
+  }
+
+  function cellKey(rowId, colId) { return rowId + '|' + colId; }
+
+  function countCalls(c) {
+    if (c.custom) return 0;
+    let n = 0;
+    if (c.probe) n += 1;
+    if (c.direct) n += 1;
+    if (c.industry) n += 1;
+    n += (c.multiSearches || []).length;
+    n += (c.timeSearches || []).length;
+    n += (c.counterSearches || []).length;
+    n += (c.deepSearches || []).length;
+    n += (c.crossSearches || []).length;
+    if (c.matrix) {
+      n += c.matrix.rows.length * c.matrix.cols.length;
+      c.matrix.rows.forEach(function (r) { if (r.fallback) n += 1; });
+    }
+    return n;
+  }
+
+  /* ---------------- view switching ---------------- */
+
+  function showView(name) {
+    const home = $('#view-home');
+    const run = $('#view-run');
+    if (name === 'run') {
+      home.hidden = true;
+      run.hidden = false;
+    } else {
+      run.hidden = true;
+      home.hidden = false;
+    }
+  }
+
+  /* ---------------- home ---------------- */
+
+  function submitClaim(raw) {
+    const text = String(raw || '').trim();
+    const hint = $('#ask-hint');
+    if (!text) {
+      hint.textContent = '先输入一个论断或问题，再开始。';
+      hint.classList.add('is-warn');
+      $('#claim-input').focus();
+      return;
+    }
+    hint.classList.remove('is-warn');
+    hint.textContent = '内置两个完整案例；输入其他问题会真实调用元宝搜索与模型，约 2–4 分钟。';
+
+    if (/飞信/.test(text) || /微信.*打死/.test(text)) {
+      startCase('feixin');
+    } else if (/小米|SU7/.test(text)) {
+      startCase('mi');
+    } else {
+      startLive(text);
+    }
+  }
+
+  $('#ask-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    submitClaim($('#claim-input').value);
+  });
+
+  $('#claim-input').addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      submitClaim($('#claim-input').value);
+    }
+  });
+
+  $$('.example').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const id = btn.getAttribute('data-case');
+      if (id && CASES[id]) {
+        $('#claim-input').value = CASES[id].claim;
+        startCase(id);
+      }
+    });
+  });
+
+  /* ---------------- console setup ---------------- */
+
+  function readProvider() {
+    const sel = $('#llm-provider');
+    if (!sel || sel.selectedIndex < 0) return 'DeepSeek';
+    return sel.options[sel.selectedIndex].textContent.trim();
+  }
+
+  function startCase(id) {
+    const c = CASES[id];
+    if (!c) return;
+    stopEngine();
+    state.caseData = c;
+    state.custom = false;
+    state.provider = readProvider();
+    showView('run');
+    resetConsole(c);
+    runSteps(buildCaseSteps(c));
+  }
+
+
+  function readProviderKey() {
+    const sel = $('#llm-provider');
+    return sel ? sel.value : 'deepseek';
+  }
+
+  function setAskHint(text, warn) {
+    const hint = $('#ask-hint');
+    if (!hint) return;
+    hint.classList.toggle('is-warn', !!warn);
+    hint.textContent = text;
+  }
+
+  function beginLiveConsole(text) {
+    stopEngine();
+    state.runId += 1;
+    state.paused = false;
+    state.aborted = false;
+    state.running = true;
+    state.done = false;
+    state.calls = 0;
+    state.total = 0;
+    state.cellState = {};
+    state.cellData = {};
+    state.streamStick = true;
+    state.startedAt = Date.now();
+    state.liveCase = {
+      id: 'live', custom: false, claim: text, claimMeta: '真实检索',
+      providerLabel: readProvider(), analysis: null, dims: [], sources: [],
+      windows: [], queries: [], matrix: null, verdict: null, evidence: null,
+      narrative: null, tabs: [{ id: 'matrix', label: '叙事矩阵' }]
+    };
+    state.caseData = state.liveCase;
+    state.activeTab = 'matrix';
+
+    showView('run');
+    $('#stream').innerHTML = '';
+    $('#stream-count').textContent = '0 步';
+    $('#run-title').textContent = text;
+    $('#run-title').title = text;
+    $('#run-provider').textContent = readProvider();
+    $('#run-status').textContent = '真实检索中';
+    $('#run-status').className = 'chip chip--live';
+    $('#run-calls').textContent = '真实检索';
+    $('#run-mode').hidden = true;
+    $('#run-elapsed').textContent = '00:00';
+    $('#btn-report').disabled = true;
+    $('#btn-pause').hidden = true;
+    $('#btn-pause').disabled = true;
+    $('#btn-stop').hidden = false;
+    $('#btn-stop').disabled = false;
+    $('#btn-restart').disabled = true;
+
+    $('#rail-dim-count').textContent = '—';
+    $('#rail-src-count').textContent = '—';
+    $('#rail-win-count').textContent = '—';
+    $('#rail-dims').innerHTML = '<li class="rail-item is-off"><p class="rail-why">等待模型规划…</p></li>';
+    $('#rail-sources').innerHTML = '';
+    $('#rail-windows').innerHTML = '<li class="rail-item is-off"><p class="rail-why">等待时间窗决策…</p></li>';
+    $('#rail-progress-text').textContent = '真实检索中…';
+    $('#rail-progress-bar').style.width = '8%';
+
+    renderTabs(state.liveCase);
+    $('#out-body').innerHTML = '<div class="out-empty"><strong>真实检索进行中</strong><span>左侧「决策与执行」会实时渲染每一步决策与检索结果。</span></div>';
+
+    if (state.timer) clearInterval(state.timer);
+    state.timer = setInterval(function () {
+      if (!state.startedAt) return;
+      $('#run-elapsed').textContent = timeLabel(Math.floor((Date.now() - state.startedAt) / 1000));
+    }, 1000);
+
+    appendLiveRow('真实检索已启动：正在连接元宝搜索与模型…');
+  }
+
+  function appendLiveRow(message) {
+    const row = document.createElement('div');
+    row.className = 'log-row is-hit';
+    row.innerHTML = '<span class="log-dot"></span><span class="log-q">' +
+      esc(message) + '</span><span class="log-tag">live</span>';
+    const stream = $('#stream');
+    stream.appendChild(row);
+    stream.scrollTop = stream.scrollHeight;
+    $('#stream-count').textContent = stream.children.length + ' 步';
+  }
+
+  async function startLive(text) {
+    const btn = $('#start-btn');
+    stopEngine();
+    setAskHint('真实检索已启动：已进入执行页，左侧实时显示进度。', false);
+    if (btn) btn.disabled = true;
+    beginLiveConsole(text);
+    state.liveAborted = false;
+    const controller = new AbortController();
+    state.liveController = controller;
+    try {
+      const resp = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claim: text, provider: readProviderKey() }),
+        signal: controller.signal
+      });
+      if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buf = '';
+      let finalCase = null;
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buf += decoder.decode(chunk.value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) >= 0) {
+          const frame = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          const line = frame.split('\n').find(function (l) { return l.indexOf('data:') === 0; });
+          if (!line) continue;
+          let data;
+          try { data = JSON.parse(line.slice(5).trim()); } catch (err) { continue; }
+          if (data.type === 'progress') {
+            const msg = data.message || '检索中…';
+            setAskHint(msg, false);
+            $('#run-status').textContent = msg;
+            if (data.event) {
+              try { handleLiveEvent(data.event); } catch (err) { console.error(err); }
+            }
+          } else if (data.type === 'case') {
+            finalCase = data.case;
+          } else if (data.type === 'error') {
+            throw new Error(data.message || '运行失败');
+          }
+        }
+      }
+      if (!finalCase) throw new Error('后端没有返回结果');
+      state.liveController = null;
+      setAskHint('完成，正在播放执行过程…', false);
+      launchLiveCase(finalCase);
+    } catch (err) {
+      if (state.liveAborted || (err && err.name === 'AbortError')) {
+        state.liveAborted = false;
+        return;
+      }
+      const msg = '真实检索失败：' + (err && err.message ? err.message : err);
+      $('#run-status').textContent = '检索失败';
+      $('#run-status').className = 'chip chip--danger';
+      appendLiveRow(msg);
+      setAskHint(msg, true);
+    } finally {
+      if (state.liveController === controller) state.liveController = null;
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  const LIVE_DIM_MAP = {
+    direct: 'direct', multi_source: 'multi', time_evolution: 'time',
+    counter_example: 'counter', deep_cause: 'deep', cross_validation: 'cross'
+  };
+  const LIVE_PROTO_DIMS = [
+    ['direct', '直接搜索'], ['multi', '多信源对比'], ['time', '时间演变'],
+    ['counter', '反例检验'], ['deep', '深层归因'], ['cross', '交叉验证']
+  ];
+
+  function liveRangeLabel(fresh) {
+    if (!fresh) return '不限';
+    if (fresh.indexOf(',') >= 0) {
+      const p = fresh.split(',');
+      return p[0].trim().slice(0, 7).replace(/-/g, '.') + '–' + p[1].trim().slice(0, 7).replace(/-/g, '.');
+    }
+    if (fresh[0] === 'y') return '近' + fresh.slice(1) + '年';
+    if (fresh[0] === 'm') return '近' + fresh.slice(1) + '月';
+    if (fresh[0] === 'd') return '近' + fresh.slice(1) + '天';
+    return fresh;
+  }
+
+  function liveHit(domain) {
+    const s = (SOURCE_LIBRARY || []).filter(function (x) { return x.domain === domain; })[0];
+    return s ? s.hit : 0;
+  }
+
+  function liveTitles(list) {
+    return (list || []).map(function (t) {
+      return { t: t.title || '', s: t.site || '', d: t.date || '无日期', u: t.url || '' };
+    });
+  }
+
+  function refreshLiveRail() {
+    const c = state.liveCase;
+    if (!c) return;
+    renderRail(c);
+    $('#rail-progress-text').textContent = '真实检索中…（已 ' + state.calls + ' 次检索）';
+    $('#rail-progress-bar').style.width = Math.min(95, 8 + state.calls * 4) + '%';
+  }
+
+  function buildLiveDims(detail) {
+    const chosen = {};
+    (detail.chosen || []).forEach(function (x) { chosen[x.id] = x.reason || ''; });
+    const notc = {};
+    (detail.not_chosen || []).forEach(function (x) { notc[x.id] = x.reason || ''; });
+    const reverse = {};
+    Object.keys(LIVE_DIM_MAP).forEach(function (k) { reverse[LIVE_DIM_MAP[k]] = k; });
+    return LIVE_PROTO_DIMS.map(function (p) {
+      const srcId = reverse[p[0]];
+      const on = !!chosen[srcId];
+      return { id: p[0], name: p[1], on: on, why: on ? chosen[srcId] : (notc[srcId] || '——') };
+    });
+  }
+
+  function buildLiveSources(detail) {
+    return (detail.chosen || []).map(function (x) {
+      return { name: x.name || '', domain: x.domain || '', hit: liveHit(x.domain), why: x.reason || '' };
+    });
+  }
+
+  function buildLiveWindows(list) {
+    return (list || []).map(function (w, i) {
+      const fresh = w.freshness || '';
+      const label = liveRangeLabel(fresh);
+      let title = w.label || '时间窗';
+      if (title === label) title = '未做时间切分';
+      return { id: 'w' + (i + 1), label: label, title: title, freshness: fresh, why: w.reason || '' };
+    });
+  }
+
+  function appendLiveQueries(dim, queries) {
+    const items = (queries || []).map(function (q) {
+      return '<div class="ev-item"><span class="ev-item-name mono">' + esc(q.query) +
+        '</span><span class="ev-item-why">' + esc(dim) + ' · ' + esc(q.intent || '') + '</span></div>';
+    }).join('');
+    appendNode('<div class="ev ev--dec"><p class="ev-kicker">搜索词 · ' + esc(dim) +
+      '</p><div class="ev-list">' + items + '</div></div>');
+  }
+
+  function renderLiveSearch(detail) {
+    const cfg = {
+      label: detail.dimension || '检索',
+      query: detail.query || '',
+      site: detail.site || '',
+      freshness: detail.freshness || '',
+      industry: detail.industry || '',
+      count: detail.count || 0,
+      ms: 300,
+      titles: liveTitles(detail.top),
+      note: detail.intent || '',
+      probe: false
+    };
+    appendNode(searchCardHTML(cfg, true));
+    addCalls(1);
+    refreshLiveRail();
+  }
+
+  function ensureLiveMatrix() {
+    const c = state.liveCase;
+    if (!c) return null;
+    if (c.matrix) return c.matrix;
+    if (!(c.sources || []).length || !(c.windows || []).length) return null;
+    const cols = c.windows.map(function (w, i) {
+      return { id: w.id || ('w' + (i + 1)), label: w.label, range: w.title || w.label, freshness: w.freshness };
+    });
+    const rows = c.sources.map(function (s, i) {
+      return { id: 'r' + i, name: s.name, domain: s.domain, hit: s.hit, cells: {} };
+    });
+    rows.forEach(function (row) {
+      cols.forEach(function (col) { row.cells[col.id] = { count: 0, reason: '待检索' }; });
+    });
+    c.matrix = { query: c.coreKeywords || c.claim, cols: cols, rows: rows };
+    appendMatrixIntro(c);
+    renderMatrixTab(c);
+    return c.matrix;
+  }
+
+  function renderLiveCell(detail) {
+    const m = ensureLiveMatrix();
+    if (!m) return;
+    if (detail.row_index == null) return;
+    const row = m.rows[detail.row_index];
+    if (!row) return;
+
+    if (!detail.window && detail.empty_reason) {
+      const fake = String(detail.empty_reason).indexOf('日期') >= 0;
+      row.note = fake ? '补检判定：日期缺失假盲区' : '补检判定：无结果/索引缺失';
+      m.cols.forEach(function (col) {
+        const cell = row.cells[col.id];
+        if (cell && cell.count === 0) {
+          cell.fake = fake;
+          cell.reason = detail.empty_reason;
+          if (fake) state.cellState[cellKey(row.id, col.id)] = 'fake';
+        }
+      });
+      if (fake) markRowFake(row);
+      const flag = $('[data-row-note="' + row.id + '"]');
+      if (flag) flag.hidden = false;
+      updateMatrixSummary();
+      return;
+    }
+
+    const col = m.cols[detail.col_index];
+    if (!col) return;
+    let cell;
+    if (detail.count > 0) {
+      cell = {
+        count: detail.count,
+        ms: 0,
+        summary: detail.narrative || (detail.count + ' 条'),
+        titles: liveTitles(detail.titles)
+      };
+    } else {
+      cell = { count: 0, reason: '该窗口无结果' };
+    }
+    row.cells[col.id] = cell;
+    fillCell(row, col, cell);
+  }
+
+  function handleLiveEvent(ev) {
+    const c = state.liveCase;
+    if (!ev || !c) return;
+    const detail = ev.detail || {};
+    if (ev.type === 'decision') {
+      if (ev.stage === 'analyze' && detail.claim_type) {
+        if (detail.core_keywords) c.coreKeywords = detail.core_keywords;
+        c.analysis = {
+          kicker: '01 / 问题分析',
+          title: (detail.claim_type || '问题') + ' · ' + (detail.topic || ''),
+          text: detail.summary || '',
+          facts: [
+            ['问题类型', detail.claim_type || ''],
+            ['主题', detail.topic || ''],
+            ['是否有争议', detail.contested ? '是' : '否'],
+            ['核心检索词', detail.core_keywords || '']
+          ]
+        };
+        appendAnalysis(c);
+      } else if (ev.stage === 'dimensions' && detail.chosen) {
+        c.dims = buildLiveDims(detail);
+        refreshLiveRail();
+        appendDims(c);
+      } else if (ev.stage === 'sources' && detail.chosen) {
+        c.sources = buildLiveSources(detail);
+        refreshLiveRail();
+        appendSources(c);
+        if (c.coreKeywords) appendStrategy(c);
+      } else if (ev.stage === 'time_probe' && detail.count !== undefined) {
+        const hist = detail.year_histogram || {};
+        const years = Object.keys(hist).map(Number).sort(function (a, b) { return a - b; });
+        const counts = years.map(function (y) { return hist[String(y)] || 0; });
+        const dated = counts.reduce(function (a, b) { return a + b; }, 0);
+        c.probe = {
+          query: c.coreKeywords || c.claim,
+          count: detail.count || 0,
+          dated: dated,
+          span: (detail.min_date || '') + ' – ' + (detail.max_date || ''),
+          ms: 0, probe: true, label: '时间窗探测',
+          titles: liveTitles(detail.sample_titles),
+          years: years, counts: counts,
+          note: (detail.count || 0) + ' 条结果，' + dated + ' 条带日期；覆盖 ' +
+            (detail.min_date || '') + ' ~ ' + (detail.max_date || '') + '。'
+        };
+        appendProbe(c);
+      } else if (ev.stage === 'time_windows' && detail.windows) {
+        c.windows = buildLiveWindows(detail.windows);
+        refreshLiveRail();
+        appendWindows(c);
+      } else if (ev.stage === 'queries' && detail.queries) {
+        appendLiveQueries(detail.dimension || '检索', detail.queries);
+      } else if (ev.stage === 'industry_lens') {
+        appendIndustryDecision(c);
+      }
+    } else if (ev.type === 'search') {
+      renderLiveSearch(detail);
+    } else if (ev.type === 'matrix_cell') {
+      renderLiveCell(detail);
+    } else if (ev.type === 'audit') {
+      const verdict = detail.verdict || {};
+      appendNode('<div class="ev ev--insight"><p class="ev-kicker">审计结论</p><p class="ev-text">成立度 ' +
+        esc(verdict.level || '') + '：' + esc(verdict.reason || '') + '</p></div>');
+    }
+  }
+
+  function launchLiveCase(c) {
+    stopEngine();
+    state.caseData = c;
+    state.custom = false;
+    state.provider = c.providerLabel || readProvider();
+    $('#run-provider').textContent = state.provider;
+    $('#run-mode').hidden = true;
+    $('#btn-restart').disabled = false;
+    state.total = countCalls(c);
+    state.calls = state.total;
+    state.cellState = {};
+    state.cellData = {};
+    if (c.matrix) {
+      c.matrix.rows.forEach(function (row) {
+        c.matrix.cols.forEach(function (col) {
+          const cell = row.cells[col.id];
+          if (!cell) return;
+          const filled = cell.count > 0;
+          const fake = !filled && !!cell.fake;
+          state.cellState[cellKey(row.id, col.id)] = filled ? 'filled' : (fake ? 'fake' : 'blind');
+          state.cellData[cellKey(row.id, col.id)] = cell;
+        });
+      });
+    }
+    state.done = true;
+    state.activeTab = c.tabs && c.tabs[0] ? c.tabs[0].id : 'matrix';
+    $('#run-status').textContent = '已完成';
+    $('#run-status').className = 'chip chip--done';
+    $('#btn-report').disabled = false;
+    $('#btn-pause').disabled = true;
+    $('#btn-stop').disabled = true;
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    $('#run-elapsed').textContent = timeLabel(Math.floor((Date.now() - state.startedAt) / 1000));
+    renderRail(c);
+    renderTabs(c);
+    updateProgress();
+    appendInsight(c);
+    finishRun(c);
+  }
+
+  function stopEngine() {
+    state.aborted = true;
+    state.running = false;
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+  }
+
+  function resetConsole(c) {
+    state.runId += 1;
+    state.paused = false;
+    state.aborted = false;
+    state.done = false;
+    state.calls = 0;
+    state.total = countCalls(c);
+    state.activeTab = c.tabs[0] ? c.tabs[0].id : null;
+    state.cellState = {};
+    state.cellData = {};
+    state.stepCount = 0;
+    state.streamStick = true;
+    state.startedAt = Date.now();
+
+    $('#stream').innerHTML = '';
+    $('#stream-count').textContent = '0 步';
+    $('#run-title').textContent = c.claim;
+    $('#run-title').title = c.claim;
+    $('#run-provider').textContent = state.provider;
+    $('#run-status').textContent = '分析中';
+    $('#run-status').className = 'chip chip--live';
+    $('#run-calls').textContent = c.custom ? '规划模式' : '0 / ' + state.total;
+    $('#run-mode').textContent = '离线回放 · 2026-11 实测';
+    $('#run-mode').className = 'chip chip--quiet';
+    $('#run-mode').hidden = false;
+    $('#run-elapsed').textContent = '00:00';
+    $('#btn-report').disabled = true;
+    $('#btn-pause').textContent = '暂停';
+    $('#btn-pause').setAttribute('aria-pressed', 'false');
+    $('#btn-pause').hidden = false;
+    $('#btn-pause').disabled = !!c.custom;
+    $('#btn-stop').hidden = false;
+    $('#btn-stop').disabled = !!c.custom;
+    $('#btn-restart').disabled = false;
+
+    renderRail(c);
+    renderTabs(c);
+    renderOutput(state.activeTab);
+    updateProgress();
+
+    if (state.timer) clearInterval(state.timer);
+    state.timer = setInterval(function () {
+      if (!state.startedAt) return;
+      $('#run-elapsed').textContent = timeLabel(Math.floor((Date.now() - state.startedAt) / 1000));
+    }, 1000);
+  }
+
+  function renderRail(c) {
+    const dims = c.dims || [];
+    const on = dims.filter(function (d) { return d.on; }).length;
+    $('#rail-dim-count').textContent = on + ' / ' + dims.length;
+    $('#rail-dims').innerHTML = dims.map(function (d) {
+      return '' +
+        '<li class="rail-item ' + (d.on ? 'is-on' : 'is-off') + '" data-dim="' + esc(d.id) + '">' +
+          '<div class="rail-item-top"><span class="rail-dot"></span><span class="rail-name">' + esc(d.name) + '</span></div>' +
+          '<p class="rail-why">' + esc(d.why) + '</p>' +
+        '</li>';
+    }).join('');
+
+    const sources = c.sources || [];
+    $('#rail-src-count').textContent = sources.length + ' / ' + SOURCE_LIBRARY.length;
+    $('#rail-sources').innerHTML = sources.map(function (s) {
+      return '' +
+        '<li class="rail-src">' +
+          '<span class="rail-src-name">' + esc(s.name) + '</span>' +
+          '<span class="rail-src-hit">' + s.hit + '%</span>' +
+          '<span class="rail-src-domain">' + esc(s.domain) + '</span>' +
+        '</li>';
+    }).join('');
+
+    const wins = c.windows || [];
+    $('#rail-win-count').textContent = wins.length ? wins.length + ' 个' : '未启用';
+    if (!wins.length) {
+      const timeDim = (c.dims || []).filter(function (d) { return d.id === 'time'; })[0];
+      const note = timeDim ? timeDim.why : '该问题不需要切分时间窗。';
+      $('#rail-windows').innerHTML = '<li class="rail-item is-off"><p class="rail-why">' + esc(note) + '</p></li>';
+    } else {
+      $('#rail-windows').innerHTML = wins.map(function (w) {
+        return '' +
+          '<li class="win-chip">' +
+            '<span class="win-label">' + esc(w.label) + ' · ' + esc(w.title) + '</span>' +
+            '<span class="win-range">' + esc(w.freshness) + '</span>' +
+          '</li>';
+      }).join('');
+    }
+
+    $('#rail-progress-text').textContent = c.custom ? '仅规划，不调用检索' : '0 / ' + state.total + ' 次调用';
+    $('#rail-progress-bar').style.width = '0%';
+
+    $$('#rail-dims .rail-item').forEach(function (li) {
+      if (li.classList.contains('is-off')) li.classList.remove('is-active');
+    });
+  }
+
+  function updateProgress() {
+    if (!state.total) {
+      $('#rail-progress-text').textContent = '仅规划，不调用检索';
+      return;
+    }
+    const pct = Math.min(100, Math.round(state.calls / state.total * 100));
+    $('#rail-progress-bar').style.width = pct + '%';
+    $('#rail-progress-text').textContent = state.calls + ' / ' + state.total + ' 次调用';
+    $('#run-calls').textContent = state.calls + ' / ' + state.total;
+  }
+
+  function addCalls(n) {
+    state.calls += n;
+    updateProgress();
+  }
+
+  function setRailActive(dimId) {
+    $$('#rail-dims .rail-item').forEach(function (li) {
+      if (li.getAttribute('data-dim') === dimId) {
+        if (!li.classList.contains('is-off')) li.classList.add('is-active');
+      }
+    });
+  }
+
+  function markDimDone(dimId) {
+    $$('#rail-dims .rail-item').forEach(function (li) {
+      if (li.getAttribute('data-dim') === dimId) {
+        li.classList.remove('is-active');
+        if (!li.classList.contains('is-off')) li.classList.add('is-done');
+      }
+    });
+  }
+
+  /* ---------------- tabs ---------------- */
+
+  function renderTabs(c) {
+    const tabs = c.tabs || [];
+    const host = $('#out-tabs');
+    host.innerHTML = tabs.map(function (t, i) {
+      return '<button class="tab" type="button" role="tab" id="tab-' + esc(t.id) + '" data-tab="' + esc(t.id) + '"' +
+        ' aria-selected="' + (i === 0 ? 'true' : 'false') + '" tabindex="' + (i === 0 ? '0' : '-1') + '">' +
+        esc(t.label) + '</button>';
+    }).join('');
+    host.setAttribute('aria-label', '检索产出');
+    const body = $('#out-body');
+    body.setAttribute('aria-labelledby', 'tab-' + (tabs[0] ? tabs[0].id : ''));
+  }
+
+  function selectTab(tabId) {
+    state.activeTab = tabId;
+    $$('#out-tabs .tab').forEach(function (btn) {
+      const on = btn.getAttribute('data-tab') === tabId;
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      btn.setAttribute('tabindex', on ? '0' : '-1');
+    });
+    const body = $('#out-body');
+    body.setAttribute('aria-labelledby', 'tab-' + tabId);
+    renderOutput(tabId);
+  }
+
+  $('#out-tabs').addEventListener('click', function (e) {
+    const btn = e.target.closest('.tab');
+    if (btn) selectTab(btn.getAttribute('data-tab'));
+  });
+
+  $('#out-tabs').addEventListener('keydown', function (e) {
+    const tabs = $$('#out-tabs .tab');
+    const idx = tabs.indexOf(document.activeElement);
+    if (idx < 0) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const next = tabs[(idx + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      next.focus();
+      selectTab(next.getAttribute('data-tab'));
+    }
+  });
+
+  /* ---------------- engine ---------------- */
+
+  async function runSteps(steps) {
+    const token = state.runId;
+    state.running = true;
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      if (state.aborted || token !== state.runId) return;
+      if (!(await tick(step.delay || 200))) return;
+      if (state.aborted || token !== state.runId) return;
+      if (step.run) await step.run();
+      if (state.paused) {
+        while (state.paused && !state.aborted && token === state.runId) await sleep(120);
+      }
+    }
+    state.running = false;
+  }
+
+  function buildCaseSteps(c) {
+    const steps = [];
+    steps.push({ delay: 420, run: function () { appendAnalysis(c); } });
+    steps.push({ delay: 760, run: function () { appendDims(c); } });
+    steps.push({ delay: 620, run: function () { appendSources(c); } });
+    if (c.coreKeywords) {
+      steps.push({ delay: 560, run: function () { appendStrategy(c); } });
+    }
+    if (c.probe) {
+      steps.push({ delay: 420, run: async function () {
+        setStatus('时间窗探测');
+        await runSearch(c.probe);
+      } });
+      steps.push({ delay: 600, run: function () { appendProbe(c); } });
+    }
+    if ((c.windows || []).length) {
+      steps.push({ delay: 600, run: function () { appendWindows(c); } });
+    }
+    steps.push({ delay: 680, run: function () { appendQueries(c); } });
+
+    if (c.direct) {
+      steps.push({ delay: 320, run: async function () {
+        setStatus('直接搜索');
+        setRailActive('direct');
+        await runSearch(c.direct);
+        markDimDone('direct');
+        announce('直接搜索完成');
+      } });
+    }
+
+    (c.multiSearches || []).forEach(function (s, i) {
+      steps.push({ delay: i === 0 ? 380 : 180, run: async function () {
+        setStatus('多信源对比');
+        setRailActive('multi');
+        await runSearch(s);
+        if (i === (c.multiSearches.length - 1)) {
+          markDimDone('multi');
+          announce('多信源对比完成，共 ' + c.multiSearches.length + ' 次检索');
+        }
+      } });
+    });
+
+    (c.timeSearches || []).forEach(function (s, i) {
+      steps.push({ delay: i === 0 ? 380 : 180, run: async function () {
+        setStatus('时间演变');
+        setRailActive('time');
+        await runSearch(s);
+        if (i === (c.timeSearches.length - 1)) {
+          markDimDone('time');
+          announce('时间演变完成，共 ' + c.timeSearches.length + ' 次检索');
+        }
+      } });
+    });
+
+    (c.counterSearches || []).forEach(function (s, i) {
+      steps.push({ delay: i === 0 ? 380 : 180, run: async function () {
+        setStatus('反例检验');
+        setRailActive('counter');
+        await runSearch(s);
+        if (i === (c.counterSearches.length - 1)) {
+          markDimDone('counter');
+          announce('反例检验完成');
+        }
+      } });
+    });
+
+    (c.deepSearches || []).forEach(function (s, i) {
+      steps.push({ delay: i === 0 ? 380 : 180, run: async function () {
+        setStatus('深层归因');
+        setRailActive('deep');
+        await runSearch(s);
+        if (i === (c.deepSearches.length - 1)) {
+          markDimDone('deep');
+          announce('深层归因完成');
+        }
+      } });
+    });
+
+    (c.crossSearches || []).forEach(function (s, i) {
+      steps.push({ delay: i === 0 ? 380 : 180, run: async function () {
+        setStatus('交叉验证');
+        setRailActive('cross');
+        await runSearch(s);
+        if (i === (c.crossSearches.length - 1)) {
+          markDimDone('cross');
+          announce('交叉验证完成');
+        }
+      } });
+    });
+
+    if (c.industry) {
+      steps.push({ delay: 500, run: function () { appendIndustryDecision(c); } });
+      steps.push({ delay: 260, run: async function () {
+        setStatus('定向补充');
+        await runSearch(c.industry);
+        announce('Industry 定向补充完成');
+      } });
+    }
+
+    if (c.matrix) {
+      steps.push({ delay: 460, run: function () {
+        setStatus('填充矩阵');
+        setRailActive('multi');
+        appendMatrixIntro(c);
+      } });
+      c.matrix.rows.forEach(function (row) {
+        c.matrix.cols.forEach(function (col) {
+          steps.push({ delay: 120, run: function () { fillCell(row, col, row.cells[col.id]); } });
+        });
+        if (row.fallback) {
+          steps.push({ delay: 200, run: function () { appendFallbackRow(row); } });
+        }
+      });
+      steps.push({ delay: 420, run: function () {
+        markDimDone('multi');
+        markDimDone('time');
+        announce('矩阵填充完成');
+      } });
+      steps.push({ delay: 620, run: function () { appendInsight(c); } });
+    }
+
+    if (!c.matrix && c.tree) {
+      steps.push({ delay: 520, run: function () {
+        setStatus('汇总证据');
+        appendInsight(c);
+      } });
+    }
+
+    steps.push({ delay: 520, run: function () { finishRun(c); } });
+    return steps;
+  }
+
+
+  function setStatus(text) {
+    $('#run-status').textContent = text;
+    if (!state.done) $('#run-status').className = 'chip chip--live';
+  }
+
+  /* ---------------- stream events ---------------- */
+
+  function appendNode(html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html.trim();
+    const node = tpl.content.firstElementChild;
+    const stream = $('#stream');
+    stream.appendChild(node);
+    if (state.streamStick) stream.scrollTop = stream.scrollHeight;
+    state.stepCount += 1;
+    $('#stream-count').textContent = state.stepCount + ' 步';
+    return node;
+  }
+
+  $('#stream').addEventListener('scroll', function () {
+    const s = $('#stream');
+    state.streamStick = (s.scrollHeight - s.scrollTop - s.clientHeight) < 48;
+  });
+
+  function appendAnalysis(c) {
+    const a = c.analysis;
+    const facts = (a.facts || []).map(function (f) {
+      return '<div class="ev-item"><span class="ev-item-why">' + esc(f[0]) + '</span><span class="ev-item-name">' + esc(f[1]) + '</span></div>';
+    }).join('');
+    appendNode('' +
+      '<div class="ev ev--dec">' +
+        '<p class="ev-kicker">' + esc(a.kicker) + '</p>' +
+        '<p class="ev-title">' + esc(a.title) + '</p>' +
+        '<p class="ev-text">' + esc(a.text) + '</p>' +
+        '<div class="ev-list">' + facts + '</div>' +
+      '</div>');
+  }
+
+  function appendDims(c) {
+    const dims = c.dims || [];
+    const on = dims.filter(function (d) { return d.on; });
+    const items = dims.map(function (d) {
+      return '<div class="ev-item' + (d.on ? '' : ' ev-item--off') + '">' +
+        '<span class="ev-item-name">' + (d.on ? '✓ ' : '— ') + esc(d.name) + '</span>' +
+        '<span class="ev-item-why">' + esc(d.why) + '</span>' +
+        '</div>';
+    }).join('');
+    appendNode('' +
+      '<div class="ev ev--dec">' +
+        '<p class="ev-kicker">02 / 维度选择</p>' +
+        '<p class="ev-title">选 ' + on.length + ' 个维度：' + on.map(function (d) { return esc(d.name); }).join(' · ') + '</p>' +
+        '<div class="ev-list">' + items + '</div>' +
+      '</div>');
+  }
+
+  function appendSources(c) {
+    const items = (c.sources || []).map(function (s) {
+      return '<div class="ev-item">' +
+        '<span class="ev-item-name">' + esc(s.name) + '</span>' +
+        '<span class="ev-item-why"><span class="mono">' + esc(s.domain) + '</span> · 命中 ' + s.hit + '% · ' + esc(s.why) + '</span>' +
+        '</div>';
+    }).join('');
+    appendNode('' +
+      '<div class="ev ev--dec">' +
+        '<p class="ev-kicker">03 / 信源选择</p>' +
+        '<p class="ev-title">从 16 个实测有效信源里选 ' + (c.sources || []).length + ' 个</p>' +
+        '<p class="ev-text">只用命中率 ≥67% 的域名；知乎、豆瓣、贴吧等已确认盲区不进入选择。政策类内容改用 Industry=gov 绕过 gov.cn 的域名盲区。</p>' +
+        '<div class="ev-list">' + items + '</div>' +
+      '</div>');
+  }
+
+  function appendStrategy(c) {
+    appendNode('' +
+      '<div class="ev ev--dec">' +
+        '<p class="ev-kicker">04 / 检索策略</p>' +
+        '<p class="ev-title">矩阵改用语料核心词：' + esc(c.coreKeywords) + '</p>' +
+        '<p class="ev-text">direct 的长 query 再叠 Site + Freshness，三重约束会把召回压到个位数。矩阵只用 2–3 个核心词做宽检索，过滤交给参数。</p>' +
+      '</div>');
+  }
+
+  function appendProbe(c) {
+    const p = c.probe;
+    const max = Math.max.apply(null, p.counts.concat([1]));
+    const bars = p.years.map(function (y, i) {
+      const n = p.counts[i];
+      const h = Math.max(2, Math.round(n / max * 48));
+      return '<div class="hist-col">' +
+        '<span class="hist-bar' + (n ? '' : ' is-zero') + '" style="height:' + h + 'px"></span>' +
+        '<span class="hist-year">' + String(y).slice(2) + '</span>' +
+        '</div>';
+    }).join('');
+    const label = p.years.map(function (y, i) { return y + ' 年 ' + p.counts[i] + ' 条'; }).join('，');
+
+    appendNode('' +
+      '<div class="ev ev--probe">' +
+        '<p class="ev-kicker">05 / 时间窗探测</p>' +
+        '<p class="ev-title">先问数据：这些内容真实发生在哪些年份</p>' +
+        '<div class="hist" role="img" aria-label="年份分布：' + esc(label) + '">' + bars + '</div>' +
+        '<div class="probe-meta">' +
+          '<span>自然检索 ' + p.count + ' 条</span>' +
+          '<span>带日期 ' + p.dated + ' / ' + p.count + '</span>' +
+          '<span>' + esc(p.span) + '</span>' +
+        '</div>' +
+        '<p class="ev-text">' + esc(p.note) + '</p>' +
+      '</div>');
+  }
+
+  function appendIndustryDecision(c) {
+    appendNode('' +
+      '<div class="ev ev--dec">' +
+        '<p class="ev-kicker">定向补充</p>' +
+        '<p class="ev-title">政策类问题，补一次 Industry=gov</p>' +
+        '<p class="ev-text">gov.cn 作为 Site 是域名盲区，但 Industry=gov 能命中政府门户与政策原文。Industry 与 Site 是 AND 叠加，同时用召回会骤降，所以只用一个。</p>' +
+      '</div>');
+  }
+
+  function appendWindows(c) {
+    const items = (c.windows || []).map(function (w) {
+      return '<div class="ev-item">' +
+        '<span class="ev-item-name">' + esc(w.label) + ' · ' + esc(w.title) + '</span>' +
+        '<span class="ev-item-why"><span class="mono">Freshness ' + esc(w.freshness) + '</span> · ' + esc(w.why) + '</span>' +
+        '</div>';
+    }).join('');
+    appendNode('' +
+      '<div class="ev ev--dec">' +
+        '<p class="ev-kicker">06 / 时间窗推断</p>' +
+        '<p class="ev-title">按真实日期分布切 ' + (c.windows || []).length + ' 个窗口，而不是按语义等分</p>' +
+        '<p class="ev-text">探测显示最早内容只到 2017-10；再往前的窗口在索引里没有对应内容，切出来只会制造假盲区。</p>' +
+        '<div class="ev-list">' + items + '</div>' +
+      '</div>');
+  }
+
+  function appendQueries(c) {
+    const items = (c.queries || []).map(function (q) {
+      return '<div class="ev-item">' +
+        '<span class="ev-item-name mono">' + esc(q.q) + '</span>' +
+        '<span class="ev-item-why">' + esc(q.dim) + ' · ' + esc(q.intent) + '</span>' +
+        '</div>';
+    }).join('');
+    appendNode('' +
+      '<div class="ev ev--dec">' +
+        '<p class="ev-kicker">07 / 搜索词生成</p>' +
+        '<p class="ev-title">每个维度 1–2 条 query，意图先行</p>' +
+        '<div class="ev-list">' + items + '</div>' +
+      '</div>');
+  }
+
+  function paramsHTML(cfg) {
+    let out = '<span class="param"><b>MODE</b>2</span>';
+    out += '<span class="param"><b>CNT</b>10</span>';
+    if (cfg.site) out += '<span class="param"><b>SITE</b>' + esc(cfg.site) + '</span>';
+    if (cfg.freshness) out += '<span class="param"><b>FRESHNESS</b>' + esc(cfg.freshness) + '</span>';
+    if (cfg.industry) out += '<span class="param"><b>INDUSTRY</b>' + esc(cfg.industry) + '</span>';
+    return out;
+  }
+
+  function safeUrl(value) {
+    const text = String(value == null ? '' : value).trim();
+    return /^https?:\/\//i.test(text) ? text : '';
+  }
+
+  function searchCardHTML(cfg, resolved) {
+    const titles = (cfg.titles || []).map(function (t, i) {
+      const href = safeUrl(t.u);
+      const title = href
+        ? '<a class="res-title" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" title="' + esc(t.t) + '">' + esc(t.t) + '</a>'
+        : '<span class="res-title" title="' + esc(t.t) + '">' + esc(t.t) + '</span>';
+      return '<div class="res-item">' +
+        '<span class="res-idx">' + (i + 1) + '</span>' +
+        title +
+        '<span class="res-meta">' + esc(t.s || '') + ' · ' + esc(t.d || '') + '</span>' +
+        '</div>';
+    }).join('');
+
+    const head = '<div class="search-top">' +
+      (cfg.label ? '<span class="search-tag">' + esc(cfg.label) + '</span>' : '') +
+      '<span class="search-query">' + esc(cfg.query) + '</span>' +
+      '<span class="search-ms">' + (resolved ? cfg.ms + 'ms' : '检索中…') + '</span>' +
+      '</div>' +
+      '<div class="search-params">' + paramsHTML(cfg) + '</div>';
+
+    if (!resolved) {
+      return '<article class="search-card">' + head + '</article>';
+    }
+
+    const empty = cfg.count === 0;
+    const stats = '<div class="search-stats">' +
+      '<span class="res-count' + (empty ? ' is-zero' : '') + '">' + cfg.count + '</span>' +
+      '<span class="res-label">条结果</span>' +
+      '</div>';
+
+    const list = empty
+      ? '<p class="res-empty">没有返回结果 — 记为盲区，不推断内容。</p>'
+      : '<div class="res-list">' + titles + '</div>';
+
+    const note = (cfg.note && !cfg.probe) ? '<p class="search-note">' + esc(cfg.note) + '</p>' : '';
+
+    return '<article class="search-card' + (empty ? ' is-empty' : '') + '">' + head + stats + list + note + '</article>';
+  }
+
+  async function runSearch(cfg) {
+    const token = state.runId;
+    const node = appendNode(searchCardHTML(cfg, false));
+    await tick(cfg.ms || 380);
+    if (state.aborted || token !== state.runId) return;
+    node.outerHTML = searchCardHTML(cfg, true);
+    addCalls(1);
+    if (state.streamStick) {
+      const s = $('#stream');
+      s.scrollTop = s.scrollHeight;
+    }
+  }
+
+  function appendMatrixIntro(c) {
+    appendNode('' +
+      '<div class="ev ev--dec">' +
+        '<p class="ev-kicker">矩阵填充</p>' +
+        '<p class="ev-title">' + c.matrix.rows.length + ' 个信源 × ' + c.matrix.cols.length + ' 个时间窗，逐格补证据</p>' +
+        '<p class="ev-text">固定核心词「' + esc(c.matrix.query) + '」，只换 Site 与 Freshness。叙事按信源整行一次提炼；整行为空时补检无时间窗检索，区分「日期缺失」与「没有内容」。</p>' +
+      '</div>');
+  }
+
+  function fillCell(row, col, cell) {
+    const token = state.runId;
+    const key = cellKey(row.id, col.id);
+    markCellLive(row.id, col.id);
+    window.setTimeout(function () {
+      if (state.aborted || token !== state.runId) return;
+      state.cellState[key] = cell.count > 0 ? 'filled' : 'blind';
+      state.cellData[key] = cell;
+      applyCellVisual(row, col, cell, state.cellState[key]);
+      addCalls(1);
+      appendLogRow(row, col, cell);
+      updateMatrixSummary();
+    }, 70);
+  }
+
+  function markCellLive(rowId, colId) {
+    const btn = $('[data-cell="' + rowId + '|' + colId + '"]');
+    if (!btn) return;
+    const td = btn.parentElement;
+    if (td) td.classList.add('cell--live');
+  }
+
+  function applyCellVisual(row, col, cell, st) {
+    const btn = $('[data-cell="' + row.id + '|' + col.id + '"]');
+    if (!btn) return;
+    const td = btn.parentElement;
+    const filled = cell.count > 0;
+    const fake = !filled && st === 'fake';
+    const pendingFake = !filled && !fake && !!cell.fake;
+    if (td) {
+      td.classList.remove('cell--pending', 'cell--live', 'cell--blind', 'cell--fake');
+      td.classList.add(filled ? 'cell--filled' : (fake ? 'cell--fake' : 'cell--blind'));
+    }
+    btn.disabled = false;
+    const ariaState = filled ? cell.count + ' 条结果：' + cell.summary
+      : (fake ? '假盲区，日期缺失，查看补检'
+        : (pendingFake ? '无结果，等待补检判定' : '无结果，盲区'));
+    btn.setAttribute('aria-label', row.name + ' ' + col.label + '，' + ariaState + '，查看证据');
+    if (filled) {
+      btn.innerHTML = '<span class="cell-sum">' + esc(cell.summary) + '</span>' +
+        '<span class="cell-meta">' + cell.count + ' 条 · ' + esc((cell.titles && cell.titles[0] && cell.titles[0].d) || '') + '</span>';
+    } else if (fake) {
+      btn.innerHTML = '<span class="fake-tag">假盲区</span>' +
+        '<span class="cell-meta">日期缺失 · 点开看补检</span>';
+    } else if (pendingFake) {
+      btn.innerHTML = '<span class="blind-tag">无结果</span>' +
+        '<span class="cell-meta">待补检判定</span>';
+    } else {
+      btn.innerHTML = '<span class="blind-tag">无结果</span>' +
+        '<span class="cell-meta">盲区 · 点开看原因</span>';
+    }
+    btn.setAttribute('data-filled', filled ? '1' : '0');
+  }
+
+  function appendLogRow(row, col, cell) {
+    const empty = cell.count === 0;
+    const pendingFake = empty && !!cell.fake;
+    appendNode('' +
+      '<div class="log-row ' + (pendingFake ? 'is-fake' : (empty ? 'is-zero' : 'is-hit')) + '">' +
+        '<span class="log-dot"></span>' +
+        '<span class="log-q" title="' + esc(row.name + ' · ' + col.label) + '">' + esc(row.name) + ' · ' + esc(col.label) + '</span>' +
+        '<span class="log-tag">' + (pendingFake ? '0 条 · 待判定' : (empty ? '0 条 · 盲区' : cell.count + ' 条')) + '</span>' +
+      '</div>');
+    const s = $('#stream');
+    if (state.streamStick) s.scrollTop = s.scrollHeight;
+  }
+
+  function markRowFake(row) {
+    const c = state.caseData;
+    if (!c || !c.matrix) return;
+    c.matrix.cols.forEach(function (col) {
+      const key = cellKey(row.id, col.id);
+      if (state.cellState[key] === 'filled') return;
+      state.cellState[key] = 'fake';
+      applyCellVisual(row, col, row.cells[col.id], 'fake');
+    });
+    const flag = $('[data-row-note="' + row.id + '"]');
+    if (flag) flag.hidden = false;
+  }
+
+  function appendFallbackRow(row) {
+    appendNode('' +
+      '<div class="log-row is-fake">' +
+        '<span class="log-dot"></span>' +
+        '<span class="log-q">补检 ' + esc(row.name) + ' · 去掉 Freshness</span>' +
+        '<span class="log-tag">' + row.fallback.count + ' 条 · 全无日期</span>' +
+      '</div>');
+    addCalls(1);
+    markRowFake(row);
+    updateMatrixSummary();
+    announce(row.name + ' 整行为空，补检后判定为日期缺失假盲区');
+  }
+
+  function appendInsight(c) {
+    const text = c.matrix ? c.insight : (c.conclusion ? c.conclusion.summary : '');
+    if (!text) return;
+    appendNode('' +
+      '<div class="ev ev--insight">' +
+        '<p class="ev-kicker">阶段性发现</p>' +
+        '<p class="ev-text">' + esc(text) + '</p>' +
+      '</div>');
+  }
+
+
+  function finishRun(c) {
+    state.done = true;
+    state.running = false;
+    state.aborted = false;
+    $('#run-status').textContent = '已完成';
+    $('#run-status').className = 'chip chip--done';
+    $('#btn-report').disabled = false;
+    $('#btn-pause').disabled = true;
+    $('#btn-stop').disabled = true;
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+
+    $$('#rail-dims .rail-item.is-on').forEach(function (li) { li.classList.add('is-done'); });
+
+    appendNode('' +
+      '<div class="ev ev--end">' +
+        '<p class="ev-kicker">审计完成</p>' +
+        '<p class="ev-title">报告已生成，' + state.calls + ' 次检索全部留痕</p>' +
+        '<p class="ev-text">矩阵、支持与反例、诊断卡都已就绪。下载的 Markdown 里包含每一条 query 与参数。</p>' +
+        '<div class="end-actions">' +
+          '<button class="btn btn--primary btn--sm" type="button" id="end-report">下载报告</button>' +
+          '<button class="btn btn--line btn--sm" type="button" id="end-card">看诊断卡</button>' +
+        '</div>' +
+      '</div>');
+
+    const rep = $('#end-report');
+    if (rep) rep.addEventListener('click', function () { downloadReport(c); });
+    const card = $('#end-card');
+    if (card) card.addEventListener('click', function () {
+      const target = (c.tabs || []).filter(function (t) { return t.id === 'card'; })[0];
+      if (target) selectTab(target.id);
+    });
+
+    renderOutput(state.activeTab);
+    announce('运行完成，共 ' + state.calls + ' 次检索');
+  }
+
+  /* ---------------- output panes ---------------- */
+
+  function renderOutput(tabId) {
+    const c = state.caseData;
+    if (!c) return;
+    if (tabId === 'matrix') { renderMatrixTab(c); return; }
+    if (tabId === 'evidence') { renderEvidenceTab(c); return; }
+    if (tabId === 'card') { renderCardTab(c); return; }
+    if (tabId === 'narrative') { renderNarrativeTab(c); return; }
+    if (tabId === 'tree') { renderTreeTab(c); return; }
+    if (tabId === 'plan') { renderPlanTab(c); return; }
+    $('#out-body').innerHTML = '';
+  }
+
+  function renderMatrixTab(c) {
+    const m = c.matrix;
+    if (!m) {
+      $('#out-body').innerHTML = '<div class="out-empty"><strong>这个案例没有矩阵</strong><span>问题不需要切时间窗，产出改用叙事对照与归因结构呈现。</span></div>';
+      return;
+    }
+    var head = '<div class="section-head"><h3>信源 × 时间 叙事矩阵</h3>' +
+      '<span class="mono">' + m.rows.length + ' 信源 × ' + m.cols.length + ' 时间窗</span></div>';
+
+    var table = '<div class="matrix-wrap"><table class="matrix"><thead><tr><th class="corner">信源 \\ 时间</th>';
+    m.cols.forEach(function (col) {
+      table += '<th><span class="col-label">' + esc(col.label) + '</span>' +
+        '<span class="col-range">' + esc(col.range) + '</span></th>';
+    });
+    table += '</tr></thead><tbody>';
+    m.rows.forEach(function (row) {
+      const rowIsFake = m.cols.some(function (col) {
+        return state.cellState[cellKey(row.id, col.id)] === 'fake';
+      });
+      table += '<tr><th><span class="src-name">' + esc(row.name) + '</span>' +
+        '<span class="src-domain">' + esc(row.domain) + '</span>' +
+        '<span class="src-cover" data-cover="' + esc(row.id) + '">0 / ' + m.cols.length + '</span>' +
+        (row.note ? '<span class="src-flag" data-row-note="' + esc(row.id) + '"' + (rowIsFake ? '' : ' hidden') + '>' + esc(row.note) + '</span>' : '') +
+        '</th>';
+      m.cols.forEach(function (col) {
+        table += '<td class="cell cell--pending"><button class="cell-btn" type="button" disabled data-cell="' +
+          esc(row.id) + '|' + esc(col.id) + '" aria-label="' + esc(row.name + ' ' + col.label + ' 待检索') + '">' +
+          '<span class="pending-bar"></span><span class="pending-bar short"></span></button></td>';
+      });
+      table += '</tr>';
+    });
+    table += '</tbody></table></div>';
+
+    const legend = '<div class="matrix-legend">' +
+      '<span class="lg lg--fill"><i></i>有结果</span>' +
+      '<span class="lg lg--blind"><i></i>真盲区（0 条）</span>' +
+      '<span class="lg lg--fake"><i></i>假盲区（日期缺失）</span>' +
+      '<span class="lg lg--pending"><i></i>待检索</span>' +
+      '</div>';
+
+    const coverage = '<p class="matrix-legend" id="matrix-coverage">已填 0 / ' + (m.rows.length * m.cols.length) + ' 格</p>';
+
+    const note = '<p class="note" id="matrix-note"' + (state.done ? '' : ' hidden') + '>' +
+      '<strong>怎么读这张表：</strong>' + esc(c.insight) + '</p>';
+
+    $('#out-body').innerHTML = head + table + legend + coverage + note;
+
+    m.rows.forEach(function (row) {
+      m.cols.forEach(function (col) {
+        const key = cellKey(row.id, col.id);
+        if (state.cellState[key]) {
+          applyCellVisual(row, col, state.cellData[key], state.cellState[key]);
+        }
+      });
+    });
+    updateMatrixSummary();
+  }
+
+  function updateMatrixSummary() {
+    const c = state.caseData;
+    if (!c || !c.matrix) return;
+    const m = c.matrix;
+    let hitTotal = 0;
+    let blindTotal = 0;
+    let fakeTotal = 0;
+    const total = m.rows.length * m.cols.length;
+    m.rows.forEach(function (row) {
+      let hit = 0;
+      m.cols.forEach(function (col) {
+        const s = state.cellState[cellKey(row.id, col.id)];
+        if (s === 'filled') hit += 1;
+        if (s === 'blind') blindTotal += 1;
+        if (s === 'fake') fakeTotal += 1;
+      });
+      hitTotal += hit;
+      const el = $('[data-cover="' + row.id + '"]');
+      if (el) el.textContent = hit + ' / ' + m.cols.length;
+    });
+    const cov = $('#matrix-coverage');
+    if (cov) {
+      cov.textContent = '已填 ' + (hitTotal + blindTotal + fakeTotal) + ' / ' + total + ' 格 · 有结果 ' +
+        hitTotal + ' · 真盲区 ' + blindTotal + ' · 假盲区 ' + fakeTotal;
+    }
+  }
+
+  function renderEvidenceTab(c) {
+    if (!state.done) {
+      $('#out-body').innerHTML = '<div class="out-empty"><strong>等全部检索结束</strong><span>支持与反例要等最后一个查询返回后才有意义，先看左边的执行流。</span></div>';
+      return;
+    }
+    const ev = c.evidence;
+    if (!ev) {
+      $('#out-body').innerHTML = '<div class="out-empty"><strong>这个案例不做正反对照</strong><span>它不是可判真假的论断，结论以影响分层呈现。</span></div>';
+      return;
+    }
+
+    function items(list, kind) {
+      return list.map(function (it) {
+        return '<article class="evi-item">' +
+          '<span class="evi-src">' + esc(it.src) + '</span>' +
+          '<span class="evi-title">' + esc(it.title) + '</span>' +
+          '<span class="evi-note">' + esc(it.note) + '</span>' +
+          '</article>';
+      }).join('');
+    }
+
+    const v = c.verdict;
+    const html = '' +
+      '<div class="section-head"><h3>支持 vs 反例</h3><span class="mono">' +
+        (ev.support.length + ev.counter.length) + ' 条证据</span></div>' +
+      '<div class="evi-grid">' +
+        '<div class="evi-col evi-col--sup">' +
+          '<div class="evi-head"><span class="dot"></span>支持论断 <span class="mono">' + ev.support.length + '</span></div>' +
+          items(ev.support, 'sup') +
+        '</div>' +
+        '<div class="evi-col evi-col--con">' +
+          '<div class="evi-head"><span class="dot"></span>反例 / 反对证据 <span class="mono">' + ev.counter.length + '</span></div>' +
+          items(ev.counter, 'con') +
+        '</div>' +
+      '</div>' +
+      '<div class="verdict-strip">' +
+        '<p class="label">审计结论</p>' +
+        '<p class="body">成立度 <b>' + esc(v.level) + '</b>：' + esc(v.summary) + '</p>' +
+      '</div>';
+
+    $('#out-body').innerHTML = html;
+  }
+
+  function renderCardTab(c) {
+    if (!state.done) {
+      $('#out-body').innerHTML = '<div class="out-empty"><strong>诊断卡还在生成</strong><span>所有检索完成后，这里会给出可分享的一页结论。</span></div>';
+      return;
+    }
+    const v = c.verdict || c.conclusion;
+    if (!v) { $('#out-body').innerHTML = ''; return; }
+    const isVerdict = !!c.verdict;
+    const score = v.score || 0;
+    const segs = 5;
+    const onSegs = Math.max(1, Math.round(score / 100 * segs));
+
+    let meter = '<div class="meter" aria-hidden="true">';
+    for (let i = 0; i < segs; i++) meter += '<span class="meter-seg' + (i < onSegs ? ' on' : '') + '"></span>';
+    meter += '</div>';
+
+    let rows = '';
+    if (isVerdict) {
+      rows = v.rows.map(function (r) {
+        return '<div class="verdict-row"><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>';
+      }).join('');
+      rows += '<div class="verdict-row"><dt>信源盲区</dt><dd>' + esc(v.blind) + '</dd></div>';
+      rows += '<div class="verdict-row"><dt>反例</dt><dd>' + esc(v.counterCount) + '</dd></div>';
+      rows += '<div class="verdict-row"><dt>叙事漂移</dt><dd>' + esc(v.drift) + '</dd></div>';
+    } else {
+      rows = v.rows.map(function (r) {
+        return '<div class="verdict-row"><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>';
+      }).join('');
+      rows += '<div class="verdict-row"><dt>证据分层</dt><dd>' + esc((v.tags || []).join(' / ')) + '</dd></div>';
+    }
+
+    const html = '' +
+      '<div class="section-head"><h3>' + (isVerdict ? '诊断卡' : '结论卡') + '</h3><span class="mono">可分享</span></div>' +
+      '<article class="verdict-card' + (score < 50 ? ' is-low' : '') + '">' +
+        '<p class="verdict-kicker">见索 · ' + (isVerdict ? '审计诊断' : '影响评估') + '</p>' +
+        '<p class="verdict-claim">' + esc(c.claim) + '</p>' +
+        '<div class="verdict-main">' +
+          '<span class="verdict-level">' + esc(v.level) + '</span>' +
+          '<span class="verdict-what">' + (isVerdict ? '成立度' : '证据强度') + '</span>' +
+          '<span class="verdict-score">' + score + ' / 100</span>' +
+        '</div>' +
+        meter +
+        '<dl class="verdict-rows">' + rows + '</dl>' +
+        '<div class="verdict-foot">' +
+          '<span class="mono">2026-11-07 · ' + state.calls + ' 次检索 · ' + (c.sources || []).length + ' 个信源</span>' +
+          '<button class="btn btn--inverse" type="button" id="btn-copy-card">复制卡片</button>' +
+        '</div>' +
+      '</article>';
+
+    $('#out-body').innerHTML = html;
+    const copyBtn = $('#btn-copy-card');
+    if (copyBtn) copyBtn.addEventListener('click', function () { copyCard(c, v, isVerdict, copyBtn); });
+  }
+
+  function renderNarrativeTab(c) {
+    const n = c.narrative;
+    if (!n) { $('#out-body').innerHTML = ''; return; }
+    if (!state.done) {
+      $('#out-body').innerHTML = '<div class="out-empty"><strong>叙事对照还在汇总</strong><span>每个信源返回后，这里会按叙事基调归类。</span></div>';
+      return;
+    }
+    const toneClass = {
+      official: 'chip chip--live',
+      deep: 'chip chip--quiet',
+      industry: 'chip',
+      noisy: 'chip chip--danger'
+    };
+    const rows = n.rows.map(function (r) {
+      return '<tr>' +
+        '<td><span class="dist-name">' + esc(r.src) + '<span>' + esc(r.domain) + '</span></span></td>' +
+        '<td><span class="' + (toneClass[r.kind] || 'chip') + '">' + esc(r.tone) + '</span></td>' +
+        '<td>' + esc(r.sample) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    $('#out-body').innerHTML = '' +
+      '<div class="section-head"><h3>信源叙事对照</h3><span class="mono">' + n.rows.length + ' 个信源</span></div>' +
+      '<p class="ev-text mb-12">' + esc(n.summary) + '</p>' +
+      '<table class="src-table"><thead><tr><th>信源</th><th>基调</th><th>代表标题</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      '<p class="note"><strong>下一步：</strong>三种叙事并不冲突，它们分别对应政策链条的不同环节。切到「深层归因」看它们怎么接起来。</p>';
+  }
+
+  function renderTreeTab(c) {
+    const tree = c.tree;
+    if (!tree) { $('#out-body').innerHTML = ''; return; }
+    if (!state.done) {
+      $('#out-body').innerHTML = '<div class="out-empty"><strong>归因结构还在搭</strong><span>等深层归因的几次检索都返回后生成。</span></div>';
+      return;
+    }
+    const nodes = tree.map(function (t) {
+      return '<div class="tree-node">' +
+        '<p class="tree-q">' + esc(t.q) + '</p>' +
+        '<p class="tree-a">' + esc(t.a) + (t.flag ? ' <span class="flag">[' + esc(t.flag) + ']</span>' : '') + '</p>' +
+        '<span class="tree-src">' + esc(t.src) + '</span>' +
+        '</div>';
+    }).join('');
+    $('#out-body').innerHTML = '' +
+      '<div class="section-head"><h3>影响是怎么传导的</h3><span class="mono">' + tree.length + ' 个节点</span></div>' +
+      '<div class="tree">' + nodes + '</div>';
+  }
+
+  function renderPlanTab(c) {
+    $('#out-body').innerHTML = '' +
+      '<div class="out-empty">' +
+        '<strong>规划已完成，等待接入检索</strong>' +
+        '<span>已按你的问题选出 ' + (c.dims || []).filter(function (d) { return d.on; }).length + ' 个维度、' +
+        (c.sources || []).length + ' 个信源。接入元宝搜索后端后，这里会出现实时的矩阵或归因结构。</span>' +
+        '<span class="mono mt-6">原型内置两个完整案例，可直接查看全流程。</span>' +
+      '</div>';
+  }
+
+  /* ---------------- copy / download ---------------- */
+
+  function copyCard(c, v, isVerdict, btn) {
+    const lines = [
+      '【见索 · ' + (isVerdict ? '审计诊断' : '影响评估') + '】',
+      '论断：' + c.claim,
+      (isVerdict ? '成立度：' : '证据强度：') + v.level + '（' + v.score + '/100）',
+      v.summary
+    ];
+    if (isVerdict) {
+      lines.push('信源盲区：' + v.blind);
+      lines.push('反例：' + v.counterCount);
+      lines.push('叙事漂移：' + v.drift);
+    } else {
+      lines.push('证据分层：' + (v.tags || []).join(' / '));
+    }
+    const text = lines.join('\n');
+
+    function done() {
+      const old = btn.textContent;
+      btn.textContent = '已复制';
+      window.setTimeout(function () { btn.textContent = old; }, 1600);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+    } else {
+      fallbackCopy(text, done);
+    }
+  }
+
+  function fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (err) { /* 忽略，保留按钮原状 */ }
+    document.body.removeChild(ta);
+  }
+
+  function downloadReport(c) {
+    const md = buildReport(c);
+    const name = '见索-审计报告-' + (c.id === 'feixin' ? '飞信' : c.id === 'mi' ? '小米SU7' : c.claim.slice(0, 12)) + '.md';
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.setTimeout(function () { URL.revokeObjectURL(url); }, 1200);
+  }
+
+  function buildReport(c) {
+    const L = [];
+    L.push('# 见索 · 审计报告：' + c.claim);
+    L.push('');
+    L.push('- 审计时间：2026-11-07');
+    L.push('- 分析模型：' + state.provider);
+    L.push('- 检索来源：元宝搜索（Mode 2 / Cnt 10）');
+    L.push('- 调用次数：' + state.calls + ' 次');
+    if (c.sources) {
+      L.push('- 信源：' + c.sources.map(function (s) { return s.name + '（' + s.domain + '）'; }).join('、'));
+    }
+    if (c.windows && c.windows.length) {
+      L.push('- 时间窗：' + c.windows.map(function (w) { return w.label; }).join(' / '));
+    }
+    L.push('');
+
+    L.push('## 一、问题分析');
+    L.push('');
+    L.push('**' + c.analysis.title + '**');
+    L.push('');
+    L.push(c.analysis.text);
+    L.push('');
+    (c.analysis.facts || []).forEach(function (f) { L.push('- ' + f[0] + '：' + f[1]); });
+    L.push('');
+
+    L.push('## 二、模型决策');
+    L.push('');
+    L.push('### 维度选择');
+    L.push('');
+    (c.dims || []).forEach(function (d) {
+      L.push('- ' + (d.on ? '✅ ' : '❌ ') + d.name + '：' + d.why);
+    });
+    L.push('');
+    L.push('### 信源选择');
+    L.push('');
+    (c.sources || []).forEach(function (s) { L.push('- ' + s.name + '（' + s.domain + '，命中 ' + s.hit + '%）：' + s.why); });
+    L.push('');
+    if ((c.queries || []).length) {
+      L.push('### 搜索词');
+      L.push('');
+      c.queries.forEach(function (q) { L.push('- `' + q.q + '` — ' + q.dim + '：' + q.intent); });
+      L.push('');
+    }
+
+    if (c.coreKeywords) {
+      L.push('### 检索策略');
+      L.push('');
+      L.push('- 核心检索词：`' + c.coreKeywords + '`，矩阵用它做宽检索，不叠加 direct 的长 query。');
+      L.push('');
+    }
+
+    if (c.probe) {
+      L.push('### 时间窗探测');
+      L.push('');
+      L.push('自然检索 `' + c.probe.query + '` 返回 ' + c.probe.count + ' 条，带日期 ' +
+        c.probe.dated + ' / ' + c.probe.count + '，范围 ' + c.probe.span + '。');
+      L.push('');
+      L.push('年份分布：' + c.probe.years.map(function (y, i) {
+        return y + ' 年 ' + c.probe.counts[i] + ' 条';
+      }).join('，'));
+      L.push('');
+      L.push('> ' + c.probe.note);
+      L.push('');
+    }
+
+    if (c.matrix) {
+      L.push('## 三、信源 × 时间 叙事矩阵');
+      L.push('');
+      L.push('| 信源 | ' + c.matrix.cols.map(function (col) { return col.label; }).join(' | ') + ' |');
+      L.push('|---|' + c.matrix.cols.map(function () { return '---'; }).join('|') + '|');
+      c.matrix.rows.forEach(function (row) {
+        const cells = c.matrix.cols.map(function (col) {
+          const cell = row.cells[col.id];
+          if (cell.count > 0) return cell.summary + '（' + cell.count + ' 条）';
+          return cell.fake ? '假盲区（日期缺失）' : '盲区';
+        });
+        L.push('| ' + row.name + ' | ' + cells.join(' | ') + ' |');
+      });
+      L.push('');
+      L.push('> ' + c.insight);
+      L.push('');
+      c.matrix.rows.forEach(function (row) {
+        if (row.fallback) {
+          L.push('> ' + row.name + '：整行为空，补检无时间窗 ' + row.fallback.count +
+            ' 条，但全部没有日期字段 → 判定为「日期缺失假盲区」，不计入信源缺失。');
+          L.push('');
+        }
+      });
+    }
+
+    if (c.evidence) {
+      L.push('## 四、支持 vs 反例');
+      L.push('');
+      L.push('### 支持');
+      L.push('');
+      c.evidence.support.forEach(function (it) { L.push('- **' + it.title + '**（' + it.src + '）— ' + it.note); });
+      L.push('');
+      L.push('### 反例');
+      L.push('');
+      c.evidence.counter.forEach(function (it) { L.push('- **' + it.title + '**（' + it.src + '）— ' + it.note); });
+      L.push('');
+    }
+
+    if (c.narrative) {
+      L.push('## 三、信源叙事对照');
+      L.push('');
+      L.push(c.narrative.summary);
+      L.push('');
+      L.push('| 信源 | 基调 | 代表标题 |');
+      L.push('|---|---|---|');
+      c.narrative.rows.forEach(function (r) { L.push('| ' + r.src + ' | ' + r.tone + ' | ' + r.sample + ' |'); });
+      L.push('');
+    }
+
+    if (c.tree) {
+      L.push('## 四、深层归因');
+      L.push('');
+      c.tree.forEach(function (t) {
+        L.push('### ' + t.q);
+        L.push('');
+        L.push(t.a + (t.flag ? '（' + t.flag + '）' : ''));
+        L.push('');
+        L.push('来源：' + t.src);
+        L.push('');
+      });
+    }
+
+    const v = c.verdict || c.conclusion;
+    if (v) {
+      L.push('## 五、' + (c.verdict ? '审计结论' : '结论'));
+      L.push('');
+      L.push((c.verdict ? '**成立度：' + v.level + '**（' + v.score + '/100）' : '**证据强度：' + v.level + '**（' + v.score + '/100）'));
+      L.push('');
+      L.push(v.summary);
+      L.push('');
+      v.rows.forEach(function (r) { L.push('- **' + r[0] + '**：' + r[1]); });
+      L.push('');
+      if (c.verdict) {
+        L.push('- 信源盲区：' + v.blind);
+        L.push('- 反例：' + v.counterCount);
+        L.push('- 叙事漂移：' + v.drift);
+        L.push('');
+      } else {
+        L.push('- 证据分层：' + (v.tags || []).join(' / '));
+        L.push('');
+      }
+    }
+
+    L.push('## 附：证据链');
+    L.push('');
+    const searches = [];
+    if (c.probe) searches.push(c.probe);
+    if (c.direct) searches.push(c.direct);
+    if (c.industry) searches.push(c.industry);
+    (c.multiSearches || []).forEach(function (s) { searches.push(s); });
+    (c.timeSearches || []).forEach(function (s) { searches.push(s); });
+    (c.counterSearches || []).forEach(function (s) { searches.push(s); });
+    (c.deepSearches || []).forEach(function (s) { searches.push(s); });
+    searches.forEach(function (s) {
+      const params = ['Mode=2', 'Cnt=10'];
+      if (s.site) params.push('Site=' + s.site);
+      if (s.freshness) params.push('Freshness=' + s.freshness);
+      if (s.industry) params.push('Industry=' + s.industry);
+      L.push('- `' + s.query + '`（' + params.join('，') + '）→ ' + s.count + ' 条，' + s.ms + 'ms');
+      (s.titles || []).forEach(function (t) { L.push('  - ' + t.t + ' — ' + t.s + ' · ' + t.d + (t.u ? ' — ' + t.u : '')); });
+    });
+    if (c.matrix) {
+      c.matrix.rows.forEach(function (row) {
+        c.matrix.cols.forEach(function (col) {
+          const cell = row.cells[col.id];
+          L.push('- `' + c.matrix.query + '`（Mode=2，Cnt=10，Site=' + row.domain + '，Freshness=' + col.freshness + '）→ ' +
+            cell.count + ' 条' + (cell.count === 0 && cell.fake ? '（假盲区：日期缺失）' : ''));
+        });
+        if (row.fallback) {
+          L.push('- `' + row.fallback.query + '`（Mode=2，Cnt=10，Site=' + row.fallback.site + '，无 Freshness）→ ' +
+            row.fallback.count + ' 条（补检，全部无日期）');
+        }
+      });
+    }
+    L.push('');
+    L.push('---');
+    L.push('');
+    L.push('本报告由「见索」原型生成；检索结果取自元宝搜索实测记录，矩阵摘要与分析结论为示例文本。');
+
+    return L.join('\n');
+  }
+
+  /* ---------------- evidence dialog ---------------- */
+
+  const dialog = $('#evidence-dialog');
+  const evBody = $('#ev-body');
+  const evTitle = $('#ev-title');
+  const evKicker = $('#ev-kicker');
+
+  function openDialog(kicker, title, html) {
+    evKicker.textContent = kicker;
+    evTitle.textContent = title;
+    evBody.innerHTML = html;
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute('open', '');
+    }
+    $('#ev-close').focus();
+  }
+
+  $('#ev-close').addEventListener('click', function () { dialog.close(); });
+  dialog.addEventListener('click', function (e) {
+    if (e.target === dialog) dialog.close();
+  });
+
+  function openCellEvidence(row, col, cell, st) {
+    const filled = cell.count > 0;
+    const fake = !filled && st === 'fake';
+    let html = '' +
+      '<div class="ev-block">' +
+        '<h4>检索参数</h4>' +
+        '<p class="ev-line"><span class="mono">' + esc(caseQuery()) + '</span></p>' +
+        '<div class="ev-param-row">' +
+          '<span class="param"><b>MODE</b>2</span>' +
+          '<span class="param"><b>SITE</b>' + esc(row.domain) + '</span>' +
+          '<span class="param"><b>FRESHNESS</b>' + esc(col.freshness) + '</span>' +
+          '<span class="param"><b>CNT</b>10</span>' +
+        '</div>' +
+      '</div>';
+
+    const firstUrl = (filled && cell.titles && cell.titles[0] && safeUrl(cell.titles[0].u))
+      || (!filled && row.fallback && row.fallback.titles && row.fallback.titles[0] && safeUrl(row.fallback.titles[0].u))
+      || '';
+    if (firstUrl) {
+      html += '<div class="ev-block"><h4>原文</h4>' +
+        '<p class="ev-line"><a href="' + esc(firstUrl) + '" target="_blank" rel="noopener noreferrer">打开原文 ↗</a></p>' +
+        '</div>';
+    }
+
+    html += '<div class="ev-block"><h4>返回</h4>' +
+      '<p class="ev-line">' + (filled
+        ? '共 ' + cell.count + ' 条结果，' + cell.ms + 'ms。抽出的主流叙事：'
+        : '0 条结果。') + '</p>' +
+      (filled ? '<p class="ev-line mt-6">' + esc(cell.summary) + '</p>' : '') +
+      '</div>';
+
+    if (filled) {
+      html += '<div class="ev-block"><h4>原始结果</h4>' +
+        (cell.titles || []).map(function (t) {
+          const href = safeUrl(t.u);
+          const title = href
+            ? '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + esc(t.t) + '</a>'
+            : esc(t.t);
+          return '<div class="ev-result">' +
+            '<p class="ev-result-title">' + title + '</p>' +
+            '<p class="ev-result-meta">' + esc(t.s) + ' · ' + esc(t.d) + '</p>' +
+            '</div>';
+        }).join('') + '</div>';
+    } else if (fake && row.fallback) {
+      const fb = row.fallback;
+      html += '<div class="ev-block"><h4>为什么是空的</h4>' +
+        '<p class="ev-line">' + esc(cell.reason || '加时间窗后整行为空。') + '</p>' +
+        '</div>';
+      html += '<div class="ev-block"><h4>整行补检 · 去掉时间窗</h4>' +
+        '<p class="ev-line mono">' + esc(fb.query) + ' · Site=' + esc(fb.site) + ' · 无 Freshness</p>' +
+        '<p class="ev-line mt-6">共 ' + fb.count + ' 条，' + fb.ms + 'ms。</p>' +
+        (fb.titles || []).map(function (t) {
+          const href = safeUrl(t.u);
+          const title = href
+            ? '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + esc(t.t) + '</a>'
+            : esc(t.t);
+          return '<div class="ev-result">' +
+            '<p class="ev-result-title">' + title + '</p>' +
+            '<p class="ev-result-meta">' + esc(t.s) + ' · ' + esc(t.d) + '</p>' +
+            '</div>';
+        }).join('') +
+        '<p class="ev-line mt-6">' + esc(fb.note) + '</p>' +
+        '</div>';
+    } else {
+      html += '<div class="ev-block"><h4>为什么是空的</h4>' +
+        '<p class="ev-line">' + esc(cell.reason || '该信源在该时间窗内没有返回结果。') + '</p>' +
+        '<p class="ev-line mt-6">空结果不推断内容，直接记为盲区。</p>' +
+        '</div>';
+    }
+
+    openDialog(fake ? '证据链 · 假盲区' : '证据链 · ' + row.name, row.name + ' × ' + col.label, html);
+  }
+
+  function caseQuery() {
+    const c = state.caseData;
+    return c && c.matrix ? c.matrix.query : '';
+  }
+
+  $('#out-body').addEventListener('click', function (e) {
+    const btn = e.target.closest('.cell-btn');
+    if (!btn) return;
+    const key = btn.getAttribute('data-cell');
+    const c = state.caseData;
+    if (!c || !c.matrix) return;
+    const parts = key.split('|');
+    const row = c.matrix.rows.filter(function (r) { return r.id === parts[0]; })[0];
+    const col = c.matrix.cols.filter(function (k) { return k.id === parts[1]; })[0];
+    if (!row || !col) return;
+    const cell = row.cells[col.id];
+    const st = state.cellState[cellKey(row.id, col.id)];
+    if (!st) return;
+    openCellEvidence(row, col, cell, st);
+  });
+
+  $('#btn-all-sources').addEventListener('click', function () {
+    const rows = SOURCE_LIBRARY.map(function (s) {
+      return '<tr><td>' + esc(s.name) + '</td><td class="mono">' + esc(s.domain) + '</td>' +
+        '<td>' + esc(s.type) + '</td><td class="hit">' + s.hit + '%</td></tr>';
+    }).join('');
+    const blind = BLIND_SPOTS.map(function (s) {
+      return '<tr class="is-blind"><td>' + esc(s.name) + '</td><td class="mono">' + esc(s.domain) + '</td>' +
+        '<td>' + esc(s.note) + '</td><td class="hit">0%</td></tr>';
+    }).join('');
+    const html = '' +
+      '<div class="ev-block">' +
+        '<h4>可用信源（命中率 ≥67%）</h4>' +
+        '<table class="src-table"><thead><tr><th>信源</th><th>域名</th><th>类型</th><th>命中</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody></table>' +
+      '</div>' +
+      '<div class="ev-block">' +
+        '<h4>已确认盲区（不要选）</h4>' +
+        '<table class="src-table"><thead><tr><th>信源</th><th>域名</th><th>说明</th><th>命中</th></tr></thead>' +
+        '<tbody>' + blind + '</tbody></table>' +
+        '<p class="ev-line" style="margin-top:10px">6 个 query × 25 个候选域名实测；本原型的所有信源选择都来自这张表。</p>' +
+      '</div>';
+    openDialog('信源库', '16 个有效信源 · 6 个盲区', html);
+  });
+
+  /* ---------------- runbar actions ---------------- */
+
+  $('#btn-home').addEventListener('click', function () {
+    stopEngine();
+    showView('home');
+  });
+
+  $('#btn-pause').addEventListener('click', function () {
+    if (state.done || state.custom) return;
+    state.paused = !state.paused;
+    const btn = $('#btn-pause');
+    btn.textContent = state.paused ? '继续' : '暂停';
+    btn.setAttribute('aria-pressed', state.paused ? 'true' : 'false');
+    $('#run-status').textContent = state.paused ? '已暂停' : (state.running ? '检索中' : '分析中');
+    if (state.paused) {
+      if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    } else {
+      if (!state.timer) {
+        state.timer = setInterval(function () {
+          $('#run-elapsed').textContent = timeLabel(Math.floor((Date.now() - state.startedAt) / 1000));
+        }, 1000);
+      }
+    }
+  });
+
+  $('#btn-stop').addEventListener('click', function () {
+    if (state.liveController) {
+      state.liveAborted = true;
+      try { state.liveController.abort(); } catch (err) {}
+      state.liveController = null;
+      state.aborted = true;
+      state.running = false;
+      $('#run-status').textContent = '已中止';
+      $('#run-status').className = 'chip chip--danger';
+      $('#btn-stop').disabled = true;
+      $('#btn-restart').disabled = false;
+      if (state.timer) { clearInterval(state.timer); state.timer = null; }
+      appendNode('' +
+        '<div class="ev ev--end">' +
+          '<p class="ev-kicker">已中止</p>' +
+          '<p class="ev-title">已断开与服务端的连接</p>' +
+          '<p class="ev-text">真实的后续检索会在当前调用返回后停止，不再继续消耗额度。已渲染的结果保留在这一页。</p>' +
+          '<div class="end-actions"><button class="btn btn--line btn--sm" type="button" id="resume-restart">重新运行</button></div>' +
+        '</div>');
+      const againLive = $('#resume-restart');
+      if (againLive) againLive.addEventListener('click', function () {
+        if (state.caseData) startLive(state.caseData.claim || $('#run-title').textContent);
+      });
+      return;
+    }
+    if (state.done) return;
+    state.aborted = true;
+    state.running = false;
+    $('#run-status').textContent = '已中止';
+    $('#run-status').className = 'chip chip--danger';
+    $('#btn-pause').disabled = true;
+    $('#btn-stop').disabled = true;
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    appendNode('' +
+      '<div class="ev ev--end">' +
+        '<p class="ev-kicker">已中止</p>' +
+        '<p class="ev-title">运行停在 ' + state.calls + ' / ' + state.total + ' 次调用</p>' +
+        '<p class="ev-text">已返回的结果保留在矩阵里，未执行的格子仍是空白，不补推断。</p>' +
+        '<div class="end-actions"><button class="btn btn--line btn--sm" type="button" id="resume-restart">重新运行</button></div>' +
+      '</div>');
+    const again = $('#resume-restart');
+    if (again) again.addEventListener('click', function () {
+      if (!state.caseData) return;
+      if (state.caseData.id === 'live') startLive(state.caseData.claim);
+      else startCase(state.caseData.id);
+    });
+  });
+
+  $('#btn-restart').addEventListener('click', function () {
+    if (!state.caseData) return;
+    if (state.caseData.id === 'live') startLive(state.caseData.claim);
+    else startCase(state.caseData.id);
+  });
+
+  $('#btn-report').addEventListener('click', function () {
+    if (state.caseData && state.done) downloadReport(state.caseData);
+  });
+
+
+  /* ---------------- theme ---------------- */
+
+  const THEME_KEY = 'jiansuo-theme-v2';
+  const THEMES = ['paper', 'console', 'archive'];
+
+  function applyTheme(name) {
+    const next = THEMES.indexOf(name) > -1 ? name : 'paper';
+    document.documentElement.setAttribute('data-theme', next);
+    $$('[data-theme-option]').forEach(function (btn) {
+      const on = btn.getAttribute('data-theme-option') === next;
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    try { localStorage.setItem(THEME_KEY, next); } catch (err) { /* 预览环境可能禁用存储 */ }
+  }
+
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-theme-option]');
+    if (!btn) return;
+    applyTheme(btn.getAttribute('data-theme-option'));
+  });
+
+  (function initTheme() {
+    let saved = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch (err) { saved = null; }
+    applyTheme(saved || document.documentElement.getAttribute('data-theme') || 'paper');
+  })();
+
+  /* ---------------- init ---------------- */
+  (function initProvider() {
+    const select = $('#llm-provider');
+    if (select) select.value = 'custom';
+  })();
+  $('#claim-input').focus();
+
+  window.addEventListener('beforeunload', function () {
+    if (state.timer) clearInterval(state.timer);
+  });
+})();
+</script>
+</body>
+</html>

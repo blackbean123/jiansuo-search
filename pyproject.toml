@@ -1,0 +1,13 @@
+[project]
+name = "yuanbao-search"
+version = "0.1.0"
+description = "见索 · 看得见的深度搜索（元宝搜索大赛作品）"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "python-dotenv>=1.2.4",
+    "tencentcloud-sdk-python-wsa>=3.1.195",
+    "openai>=1.0.0",
+    "starlette>=0.37.0",
+    "uvicorn>=0.30.0",
+]
